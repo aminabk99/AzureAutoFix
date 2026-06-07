@@ -1,0 +1,152 @@
+[
+  {
+    "error_code": "AADSTS50126",
+    "cause": "Invalid username or password. User provided incorrect credentials.",
+    "fix_category": "user",
+    "user_or_admin": "user",
+    "reasoning": "The credentials provided do not match any account in the directory. This is typically a typo or expired password.",
+    "action": "prompt_reauth",
+    "action_detail": "Prompt the user to re-enter credentials or reset their password.",
+    "user_message": "Your username or password is incorrect. Please try again or reset your password."
+  },
+  {
+    "error_code": "AADSTS50058",
+    "cause": "A silent sign-in request was sent but no user is signed in. The session cookie is missing or expired.",
+    "fix_category": "user",
+    "user_or_admin": "user",
+    "reasoning": "The application tried to silently acquire a token but no active session exists. An interactive login is required.",
+    "action": "trigger_interactive_login",
+    "action_detail": "Redirect user to interactive login flow using MSAL loginRedirect or loginPopup.",
+    "user_message": "Your session has expired. Please sign in again."
+  },
+  {
+    "error_code": "AADSTS65001",
+    "cause": "User or administrator has not consented to use the application. Send an interactive authorization request for this user and resource.",
+    "fix_category": "user",
+    "user_or_admin": "user",
+    "reasoning": "The application requires permissions that have not been granted. The user must go through an OAuth consent flow.",
+    "action": "trigger_consent_flow",
+    "action_detail": "Redirect user to consent URL with prompt=consent parameter to force consent screen.",
+    "user_message": "This app needs your permission to access your data. Please approve the permissions request."
+  },
+  {
+    "error_code": "AADSTS700016",
+    "cause": "Application was not found in the directory or tenant. This can happen if the application has not been installed by the administrator of the tenant.",
+    "fix_category": "user",
+    "user_or_admin": "user",
+    "reasoning": "The client_id does not exist in the current tenant. The user may be signed into the wrong tenant.",
+    "action": "redirect_correct_tenant",
+    "action_detail": "Guide user to sign in to the correct tenant or contact their admin to register the app.",
+    "user_message": "This application is not registered in your organization. Make sure you're signed into the correct account or contact your IT admin."
+  },
+  {
+    "error_code": "AADSTS900971",
+    "cause": "No redirect URI was provided in the app registration. OAuth flow cannot complete without a valid redirect URI.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "The application's redirect URI is missing or does not match what was sent in the auth request. This is fixed by updating the app registration in Azure AD.",
+    "action": "add_redirect_uri",
+    "action_detail": "Call MS Graph API PATCH /applications/{id} to add the redirect URI to the app registration.",
+    "user_message": "Missing redirect URI in app registration. Fixing automatically via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS50055",
+    "cause": "The user's password has expired and must be reset before they can sign in.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "Password expiry is enforced by the tenant policy. An admin can force a password reset via Graph API.",
+    "action": "force_password_reset",
+    "action_detail": "Call MS Graph API PATCH /users/{id} with forceChangePasswordNextSignIn=true.",
+    "user_message": "User's password has expired. Triggering password reset via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS50057",
+    "cause": "The user account has been disabled in Azure Active Directory.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "Account disable is an admin-level action. It can be reversed by patching the user's accountEnabled property.",
+    "action": "enable_account",
+    "action_detail": "Call MS Graph API PATCH /users/{id} with accountEnabled=true.",
+    "user_message": "User account is disabled. Re-enabling account via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS700011",
+    "cause": "Invalid client credentials. The application secret or certificate used for authentication is incorrect or expired.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "App secrets have an expiry date or may have been regenerated. A new secret must be created and the old one removed.",
+    "action": "rotate_app_secret",
+    "action_detail": "Call MS Graph API POST /applications/{id}/addPassword to add new secret, then DELETE old credential.",
+    "user_message": "App client credentials are invalid. Rotating application secret via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS90094",
+    "cause": "Admin consent is required. The application is requesting permissions that can only be granted by a tenant administrator.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "Certain scopes (e.g., User.Read.All, Group.ReadWrite.All) require admin consent. This can be granted programmatically.",
+    "action": "grant_admin_consent",
+    "action_detail": "Call MS Graph API POST /oauth2PermissionGrants or use the admin consent endpoint to grant tenant-wide consent.",
+    "user_message": "Admin consent required for this application. Granting consent via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS50076",
+    "cause": "Multi-factor authentication is required but was not completed. The user must perform MFA.",
+    "fix_category": "user",
+    "user_or_admin": "user",
+    "reasoning": "MFA is enforced by Conditional Access policy. The user must complete MFA during the interactive login flow.",
+    "action": "trigger_interactive_login",
+    "action_detail": "Redirect user to interactive login so they can complete the MFA challenge.",
+    "user_message": "Multi-factor authentication is required. Please sign in again to complete the MFA step."
+  },
+  {
+    "error_code": "AADSTS70011",
+    "cause": "The provided scope is invalid or not supported for this application.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "The scope requested doesn't match the API permissions configured in the app registration.",
+    "action": "update_api_permissions",
+    "action_detail": "Call MS Graph API PATCH /applications/{id} to add the required resourceAccess permissions.",
+    "user_message": "Invalid scope requested. Updating API permissions in app registration via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS50020",
+    "cause": "User account from external identity provider does not exist in tenant.",
+    "fix_category": "admin_escalate",
+    "user_or_admin": "admin",
+    "reasoning": "Guest user invitations or B2B federation issues require admin review and manual resolution.",
+    "action": "escalate_to_admin",
+    "action_detail": "Generate escalation message for admin to invite external user or configure B2B federation.",
+    "user_message": "Your account is not recognized in this organization. Your IT admin needs to invite you or configure external access."
+  },
+  {
+    "error_code": "AADSTS50053",
+    "cause": "Account is locked out due to too many failed sign-in attempts.",
+    "fix_category": "admin_auto",
+    "user_or_admin": "admin",
+    "reasoning": "Smart lockout or account protection policy has locked the account. An admin can unlock it via Graph API.",
+    "action": "unlock_account",
+    "action_detail": "Call MS Graph API POST /users/{id}/authentication/methods to clear sign-in lockout.",
+    "user_message": "Account is locked due to too many failed attempts. Unlocking account via MS Graph API."
+  },
+  {
+    "error_code": "AADSTS90033",
+    "cause": "A transient error has occurred. Please retry.",
+    "fix_category": "retry",
+    "user_or_admin": "user",
+    "reasoning": "Azure AD service experienced a temporary fault. No configuration change is needed.",
+    "action": "retry",
+    "action_detail": "Wait 5-10 seconds and retry the authentication request.",
+    "user_message": "A temporary error occurred with Microsoft's authentication service. Please wait a moment and try again."
+  },
+  {
+    "error_code": "AADSTS700082",
+    "cause": "The refresh token has expired. The session is too old and the token can no longer be silently refreshed.",
+    "fix_category": "user",
+    "user_or_admin": "user",
+    "reasoning": "Refresh tokens expire based on tenant policy (typically 90 days inactive). User must re-authenticate.",
+    "action": "trigger_interactive_login",
+    "action_detail": "Clear the token cache and redirect user to interactive sign-in.",
+    "user_message": "Your session has expired. Please sign in again."
+  }
+]

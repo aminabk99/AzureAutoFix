@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pt
+vocab.json
+.venv/
+venv/
+node_modules/
+*.crx
+.DS_Store

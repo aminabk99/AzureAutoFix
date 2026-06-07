@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AzureAutoFix</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 340px;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      font-size: 13px;
+      background: #fafafa;
+      color: #333;
+    }
+    .header {
+      background: #0078d4;
+      color: white;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header h1 { font-size: 15px; font-weight: 600; }
+    .header span { font-size: 20px; }
+    .body { padding: 16px; }
+    .card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .card-title { font-weight: 600; color: #0078d4; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .error-code { font-family: monospace; background: #f0f7ff; padding: 3px 8px; border-radius: 4px; font-size: 13px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+    .badge-auto     { background: #cce5ff; color: #004085; }
+    .badge-user     { background: #e6f4ea; color: #1e7e34; }
+    .badge-escalate { background: #f8d7da; color: #721c24; }
+    .badge-retry    { background: #fff3cd; color: #856404; }
+    .message { color: #555; margin-top: 8px; line-height: 1.4; }
+    .reasoning { background: #1e1e1e; color: #d4d4d4; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap; max-height: 100px; overflow-y: auto; }
+    button {
+      width: 100%;
+      padding: 9px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn-primary:hover { background: #106ebe; }
+    .btn-secondary { background: white; color: #0078d4; border: 1px solid #0078d4; }
+    .btn-secondary:hover { background: #f0f7ff; }
+    .status-msg { text-align: center; color: #555; padding: 20px; }
+    .input-row { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+    input[type="text"], input[type="password"] {
+      padding: 7px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 12px;
+      width: 100%;
+    }
+    label { font-size: 11px; color: #666; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 4px 0; }
+    #fix-progress { display: none; }
+    #fix-progress .progress-bar {
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    #fix-progress .progress-fill {
+      height: 100%;
+      background: #0078d4;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+    #fix-progress .progress-label { font-size: 11px; color: #555; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span>⚡</span>
+    <h1>AzureAutoFix</h1>
+  </div>
+
+  <div class="body">
+    <!-- No error state -->
+    <div id="no-error" class="status-msg" style="display:none;">
+      <div style="font-size:28px; margin-bottom:8px;">✅</div>
+      <div>No Azure AD errors detected on this page.</div>
+      <div style="font-size:11px; color:#888; margin-top:4px;">Navigate to a Microsoft portal page to begin monitoring.</div>
+    </div>
+
+    <!-- Error detected state -->
+    <div id="error-state" style="display:none;">
+      <div class="card">
+        <div class="card-title">Error Detected</div>
+        <span class="error-code" id="error-code-display">—</span>
+        <span class="badge" id="fix-badge">—</span>
+        <div class="message" id="error-message">—</div>
+        <div class="reasoning" id="reasoning-box" style="display:none;"></div>
+        <button class="btn-secondary" id="toggle-reasoning" style="margin-top:8px; font-size:11px;">Show reasoning ▼</button>
+      </div>
+
+      <div id="fix-progress" class="card">
+        <div class="card-title">Fixing...</div>
+        <div class="progress-label" id="progress-label">Connecting...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+
+      <!-- Admin auto-fix -->
+      <div id="admin-fix-card" class="card" style="display:none;">
+        <div class="card-title">Auto-Fix Available</div>
+        <div class="input-row">
+          <label>MS Graph Access Token (admin)</label>
+          <input type="password" id="access-token-input" placeholder="eyJ0..." />
+          <label>User Object ID (if user fix)</label>
+          <input type="text" id="user-id-input" placeholder="00000000-0000-0000-..." />
+          <label>App Object ID (if app fix)</label>
+          <input type="text" id="app-id-input" placeholder="00000000-0000-0000-..." />
+          <label>Redirect URI (for AADSTS900971)</label>
+          <input type="text" id="redirect-uri-input" placeholder="https://localhost:3000" />
+        </div>
+        <button class="btn-primary" id="auto-fix-btn" style="margin-top:10px;">⚡ Fix Now</button>
+      </div>
+
+      <!-- User-guided fix -->
+      <div id="user-fix-card" class="card" style="display:none;">
+        <div class="card-title">Steps to Fix</div>
+        <ol id="user-steps" style="padding-left:16px; line-height:1.8; color:#444;"></ol>
+      </div>
+
+      <!-- Escalate -->
+      <div id="escalate-card" class="card" style="display:none;">
+        <div class="card-title">Escalate to Admin</div>
+        <textarea id="escalate-text" rows="5" style="width:100%; font-size:11px; border:1px solid #ccc; border-radius:6px; padding:8px; resize:none; font-family:inherit;"></textarea>
+        <button class="btn-secondary" id="copy-escalate-btn">Copy message</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
