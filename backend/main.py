@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.inference import classify, load_model
 from backend.graph_api import GraphAPIClient
 from backend.escalation import generate_escalation_message
+from backend.auth import get_app_token
 
 app = FastAPI(
     title="AzureAutoFix API",
@@ -110,10 +111,9 @@ async def fix_error(req: FixRequest):
     Step 2 (admin only): Execute the fix via MS Graph API.
     Requires a valid admin access token.
     """
-    if not req.access_token:
-        raise HTTPException(status_code=401, detail="access_token required for admin fixes")
-
-    client = GraphAPIClient(req.access_token)
+    # Use provided token or fall back to app-level token from .env
+    token = req.access_token or get_app_token()
+    client = GraphAPIClient(token)
     fix_category = req.fix_category
 
     try:
