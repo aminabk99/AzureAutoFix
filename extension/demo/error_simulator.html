@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sign in to your account</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #f2f2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  .panel {
+    background: white;
+    width: 440px;
+    padding: 44px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    border-radius: 2px;
+  }
+  .ms-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    font-size: 20px;
+    color: #1b1b1b;
+  }
+  .ms-logo img { width: 24px; height: 24px; }
+  h1 {
+    font-size: 24px;
+    font-weight: 400;
+    color: #1b1b1b;
+    margin: 0 0 16px;
+  }
+  .error-box {
+    border-left: 4px solid #d13438;
+    background: #fdf3f4;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.6;
+  }
+  .error-code {
+    font-weight: 600;
+    color: #a4262c;
+  }
+  .footer {
+    margin-top: 24px;
+    font-size: 11px;
+    color: #999;
+  }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <div class="ms-logo">
+      <svg width="24" height="24" viewBox="0 0 23 23"><rect x="0" y="0" width="11" height="11" fill="#f25022"/><rect x="12" y="0" width="11" height="11" fill="#7fba00"/><rect x="0" y="12" width="11" height="11" fill="#00a4ef"/><rect x="12" y="12" width="11" height="11" fill="#ffb900"/></svg>
+      Microsoft
+    </div>
+    <h1>Sign in to AzureAutoFix Demo App</h1>
+    <div class="error-box">
+      <div class="error-code">AADSTS900971: No reply address is registered for the application.</div>
+      <div style="margin-top:8px;">
+        The application's redirect URI does not match any of the values configured for this
+        application in Azure Active Directory. Contact your application administrator.
+      </div>
+    </div>
+    <div class="footer">
+      Trace ID: 3f1c9a2e-1234-4abc-9def-7a8b6c5d4e3f &middot; Correlation ID: a1b2c3d4-e5f6-7890-abcd-1234567890ef
+    </div>
+  </div>
+</body>
+</html>

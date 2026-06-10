@@ -2,8 +2,7 @@
 
 > An agentic Azure AD error resolution system. Detects authentication errors, reasons about them with a from-scratch transformer, and fixes them automatically via the MS Graph API — in under 10 seconds.
 
-<!-- Add demo GIF here -->
-<!-- ![Demo](assets/demo.gif) -->
+![Demo: AzureAutoFix detects an AADSTS900971 error and resolves it live via the MS Graph API](assets/demo.gif)
 
 ---
 

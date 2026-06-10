@@ -12,14 +12,16 @@
     "https://*.microsoft.com/*",
     "https://*.azure.com/*",
     "https://*.microsoftonline.com/*",
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "http://localhost:8080/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://*.microsoft.com/*",
         "https://*.azure.com/*",
-        "https://*.microsoftonline.com/*"
+        "https://*.microsoftonline.com/*",
+        "http://localhost:8080/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

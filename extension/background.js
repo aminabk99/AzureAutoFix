@@ -57,10 +57,6 @@ async function handleFix(errorCode, analysisResult) {
     "accessToken", "userId", "appId", "redirectUri",
   ]);
 
-  if (!accessToken) {
-    return { success: false, error: "No access token. Sign in via the extension popup first." };
-  }
-
   try {
     const resp = await fetch(`${API_BASE}/fix`, {
       method: "POST",
@@ -68,7 +64,7 @@ async function handleFix(errorCode, analysisResult) {
       body: JSON.stringify({
         error_code: errorCode,
         fix_category: analysisResult?.fix_category,
-        access_token: accessToken,
+        access_token: accessToken || "",
         user_id: userId || null,
         app_id: appId || null,
         redirect_uri: redirectUri || null,

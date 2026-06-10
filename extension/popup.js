@@ -136,11 +136,8 @@ async function doFix(errorCode, analysis) {
   const appId = document.getElementById("app-id-input").value.trim();
   const redirectUri = document.getElementById("redirect-uri-input").value.trim();
 
-  if (!accessToken) {
-    alert("Please enter your MS Graph access token.");
-    return;
-  }
-
+  // Access token is optional — if left blank, the backend falls back to its
+  // own app-level MS Graph credentials (client credentials flow via .env).
   await chrome.storage.local.set({ accessToken, userId, appId, redirectUri });
 
   const progressCard = document.getElementById("fix-progress");
@@ -168,7 +165,7 @@ async function doFix(errorCode, analysis) {
       body: JSON.stringify({
         error_code: errorCode,
         fix_category: analysis.fix_category,
-        access_token: accessToken,
+        access_token: accessToken || "",
         user_id: userId || null,
         app_id: appId || null,
         redirect_uri: redirectUri || null,
