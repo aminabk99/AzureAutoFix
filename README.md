@@ -19,30 +19,7 @@ When you hit an Azure AD error (e.g. `AADSTS900971`, `AADSTS50057`), AzureAutoFi
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Chrome Extension                      │
-│  content.js watches DOM → detects AADSTS* errors        │
-│  popup.html shows analysis + fix button                  │
-│  background.js calls FastAPI backend                     │
-└───────────────────────┬─────────────────────────────────┘
-                        │ HTTP
-┌───────────────────────▼─────────────────────────────────┐
-│                    FastAPI Backend                       │
-│  POST /analyze  →  LLM classification                   │
-│  POST /fix      →  MS Graph API execution               │
-│  POST /escalate →  admin message generation             │
-└──────────────┬──────────────────┬───────────────────────┘
-               │                  │
-┌──────────────▼──────┐  ┌────────▼───────────────────────┐
-│   From-Scratch LLM  │  │    MS Graph API                │
-│   Transformer       │  │    (fixes applied here)        │
-│   Trained on Azure  │  │                                │
-│   AD error taxonomy │  │  PATCH /users/{id}             │
-│   → fix_category    │  │  PATCH /applications/{id}      │
-│   → reasoning       │  │  POST  /addPassword            │
-└─────────────────────┘  └────────────────────────────────┘
-```
+![AzureAutoFix architecture: Chrome Extension detects errors, FastAPI backend classifies via a from-scratch transformer and resolves via MS Graph API](assets/architecture.svg)
 
 ---
 

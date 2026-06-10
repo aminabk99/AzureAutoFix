@@ -1,0 +1,82 @@
+<svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6b79"/>
+    </marker>
+    <linearGradient id="extGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0078d4"/>
+      <stop offset="1" stop-color="#005a9e"/>
+    </linearGradient>
+    <linearGradient id="apiGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b88d8"/>
+      <stop offset="1" stop-color="#106ebe"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="620" fill="#f7f9fb"/>
+
+  <!-- Title -->
+  <text x="450" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#1b1b1b">AzureAutoFix — System Architecture</text>
+
+  <!-- Chrome Extension -->
+  <rect x="200" y="64" width="500" height="118" rx="12" fill="url(#extGrad)"/>
+  <text x="225" y="92" font-size="15" font-weight="700" fill="#ffffff">🧩 Chrome Extension (Manifest V3)</text>
+  <rect x="222" y="104" width="218" height="60" rx="8" fill="#ffffff" opacity="0.12"/>
+  <rect x="450" y="104" width="228" height="60" rx="8" fill="#ffffff" opacity="0.12"/>
+  <text x="234" y="124" font-size="12.5" fill="#eaf3fc" font-weight="600">content.js</text>
+  <text x="234" y="143" font-size="11.5" fill="#eaf3fc">Watches DOM for AADSTS*</text>
+  <text x="234" y="159" font-size="11.5" fill="#eaf3fc">error codes via MutationObserver</text>
+
+  <text x="462" y="124" font-size="12.5" fill="#eaf3fc" font-weight="600">popup.js + background.js</text>
+  <text x="462" y="143" font-size="11.5" fill="#eaf3fc">Renders analysis &amp; fix UI,</text>
+  <text x="462" y="159" font-size="11.5" fill="#eaf3fc">calls FastAPI backend</text>
+
+  <!-- Arrow: Extension -> Backend -->
+  <line x1="450" y1="182" x2="450" y2="232" stroke="#5b6b79" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="466" y="212" font-size="11.5" fill="#5b6b79">HTTP (localhost:8000)</text>
+
+  <!-- FastAPI Backend -->
+  <rect x="150" y="234" width="600" height="130" rx="12" fill="url(#apiGrad)"/>
+  <text x="175" y="262" font-size="15" font-weight="700" fill="#ffffff">⚙️ FastAPI Backend</text>
+
+  <rect x="172" y="276" width="170" height="70" rx="8" fill="#ffffff" opacity="0.14"/>
+  <rect x="362" y="276" width="170" height="70" rx="8" fill="#ffffff" opacity="0.14"/>
+  <rect x="552" y="276" width="170" height="70" rx="8" fill="#ffffff" opacity="0.14"/>
+
+  <text x="184" y="298" font-size="12.5" font-weight="700" fill="#eaf3fc">POST /analyze</text>
+  <text x="184" y="316" font-size="11" fill="#eaf3fc">Classify error with</text>
+  <text x="184" y="332" font-size="11" fill="#eaf3fc">transformer model</text>
+
+  <text x="374" y="298" font-size="12.5" font-weight="700" fill="#eaf3fc">POST /fix</text>
+  <text x="374" y="316" font-size="11" fill="#eaf3fc">Execute remediation</text>
+  <text x="374" y="332" font-size="11" fill="#eaf3fc">via MS Graph API</text>
+
+  <text x="564" y="298" font-size="12.5" font-weight="700" fill="#eaf3fc">POST /escalate</text>
+  <text x="564" y="316" font-size="11" fill="#eaf3fc">Draft admin escalation</text>
+  <text x="564" y="332" font-size="11" fill="#eaf3fc">message</text>
+
+  <!-- Arrows: Backend -> Model / Graph API -->
+  <line x1="320" y1="364" x2="240" y2="426" stroke="#5b6b79" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="580" y1="364" x2="660" y2="426" stroke="#5b6b79" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- From-scratch transformer -->
+  <rect x="80" y="430" width="340" height="160" rx="12" fill="#ffffff" stroke="#d6dde3" stroke-width="1.5"/>
+  <text x="105" y="460" font-size="14.5" font-weight="700" fill="#0078d4">🧠 From-Scratch Transformer</text>
+  <text x="105" y="486" font-size="12" fill="#444">PyTorch model trained on Azure AD</text>
+  <text x="105" y="505" font-size="12" fill="#444">error taxonomy (15 error types)</text>
+  <line x1="105" y1="520" x2="395" y2="520" stroke="#eee" stroke-width="1"/>
+  <text x="105" y="542" font-size="12" fill="#444">→ <tspan font-weight="600">fix_category</tspan> (admin_auto, user,</text>
+  <text x="120" y="560" font-size="12" fill="#444">admin_escalate, retry)</text>
+  <text x="105" y="580" font-size="12" fill="#444">→ <tspan font-weight="600">reasoning</tspan> + confidence score</text>
+
+  <!-- MS Graph API -->
+  <rect x="480" y="430" width="340" height="160" rx="12" fill="#ffffff" stroke="#d6dde3" stroke-width="1.5"/>
+  <text x="505" y="460" font-size="14.5" font-weight="700" fill="#0078d4">🔗 MS Graph API v1.0</text>
+  <text x="505" y="486" font-size="12" fill="#444">Fixes are applied directly against</text>
+  <text x="505" y="505" font-size="12" fill="#444">the Azure AD tenant</text>
+  <line x1="505" y1="520" x2="795" y2="520" stroke="#eee" stroke-width="1"/>
+  <text x="505" y="542" font-size="12" font-family="Consolas, monospace" fill="#444">PATCH /applications/{id}</text>
+  <text x="505" y="560" font-size="12" font-family="Consolas, monospace" fill="#444">PATCH /users/{id}</text>
+  <text x="505" y="578" font-size="12" font-family="Consolas, monospace" fill="#444">POST  /addPassword</text>
+
+</svg>
