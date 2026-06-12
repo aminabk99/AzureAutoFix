@@ -3,7 +3,14 @@
  * Reads stored error data from chrome.storage and renders the appropriate UI state.
  */
 
-const API_BASE = "http://localhost:8000";
+// Live backend (deployed on Railway). For local development, change this to
+// "http://localhost:8000" and add it back to host_permissions in manifest.json.
+const API_BASE = "https://azureautofix-production.up.railway.app";
+
+// Public demo API key for the /fix endpoint. This only gates the endpoint
+// itself — every /fix call still requires the caller's own MS Graph
+// access_token, so this key cannot be used to modify anyone else's tenant.
+const DEMO_API_KEY = "Ts3Rh5YOal1Ln_6WoJr05-eYaottLK05";
 
 const USER_STEPS = {
   prompt_reauth: [
@@ -161,26 +168,10 @@ async function doFix(errorCode, analysis) {
   try {
     const resp = await fetch(`${API_BASE}/fix`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-API-Key": DEMO_API_KEY },
       body: JSON.stringify({
         error_code: errorCode,
         fix_category: analysis.fix_category,
         access_token: accessToken || "",
         user_id: userId || null,
-        app_id: appId || null,
-        redirect_uri: redirectUri || null,
-      }),
-    });
-    const result = await resp.json();
-    if (result.success) {
-      progressLabel.textContent = `✅ ${result.details}`;
-      progressFill.style.background = "#107c10";
-    } else {
-      progressLabel.textContent = `❌ Fix failed: ${result.detail || "Unknown error"}`;
-    }
-  } catch (e) {
-    progressLabel.textContent = `❌ Error: ${e.message}`;
-  }
-}
-
-document.addEventListener("DOMContentLoaded", loadState);
+        app_id: appId 

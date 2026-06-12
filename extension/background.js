@@ -4,7 +4,14 @@
  * Content script messages come here; we call the API and respond.
  */
 
-const API_BASE = "http://localhost:8000";
+// Live backend (deployed on Railway). For local development, change this to
+// "http://localhost:8000" and add it back to host_permissions in manifest.json.
+const API_BASE = "https://azureautofix-production.up.railway.app";
+
+// Public demo API key for the /fix endpoint. This only gates the endpoint
+// itself — every /fix call still requires the caller's own MS Graph
+// access_token, so this key cannot be used to modify anyone else's tenant.
+const DEMO_API_KEY = "Ts3Rh5YOal1Ln_6WoJr05-eYaottLK05";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "ERROR_DETECTED") {
@@ -60,21 +67,6 @@ async function handleFix(errorCode, analysisResult) {
   try {
     const resp = await fetch(`${API_BASE}/fix`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-API-Key": DEMO_API_KEY },
       body: JSON.stringify({
-        error_code: errorCode,
-        fix_category: analysisResult?.fix_category,
-        access_token: accessToken || "",
-        user_id: userId || null,
-        app_id: appId || null,
-        redirect_uri: redirectUri || null,
-      }),
-    });
-    const result = await resp.json();
-    chrome.action.setBadgeText({ text: "✓" });
-    chrome.action.setBadgeBackgroundColor({ color: "#107c10" });
-    return { success: true, result };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-}
+        error_code: erro
