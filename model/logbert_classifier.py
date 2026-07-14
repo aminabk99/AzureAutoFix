@@ -295,7 +295,7 @@ class LogBERTInference:
             num_classes=len(self.idx2label),
             **meta.get("arch", {}),
         )
-        self.model.load_state_dict(torch.load(model_path, map_location="cpu"))
+        self.model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=True))
         self.model.eval()
         self._loaded = True
 
@@ -369,4 +369,4 @@ if __name__ == "__main__":
     print(f"logits shape:      {out['logits'].shape}")       # (2, 4)
     print(f"mlkp_logits shape: {out['mlkp_logits'].shape}") # (2, 2, 500)
     print(f"dist_repr shape:   {out['dist_repr'].shape}")    # (2, 128)
-    print("Architecture check passed.")
+    print("Architectur

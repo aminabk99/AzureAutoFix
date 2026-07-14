@@ -57,8 +57,8 @@ async def startup_event():
     try:
         load_model()
         print("[Startup] Model loaded successfully.")
-    except FileNotFoundError:
-        print("[Startup] WARNING: Model file not found. Train the model first (model/train.py).")
+    except Exception as e:
+        print(f"[Startup] WARNING: Could not load model ({type(e).__name__}: {e}). Run model/train_local.py to train.")
 
 
 # -- Request/Response Models --------------------------------------------------
@@ -269,5 +269,4 @@ def escalate(req: AnalyzeRequest):
         error_code=result["error_code"],
         explanation=result["explanation"],
         action_detail=result["action_detail"],
-    )
-    return msg
+    

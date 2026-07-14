@@ -99,7 +99,7 @@ def _load_error_lookup():
 
 def load_model():
     global _model, _vocab, _idx2label, _error_lookup
-    checkpoint = torch.load(MODEL_DIR / "azure_error_model.pt", map_location="cpu")
+    checkpoint = torch.load(MODEL_DIR / "azure_error_model.pt", map_location="cpu", weights_only=False)
     with open(MODEL_DIR / "vocab.json") as f:
         _vocab = json.load(f)
     _idx2label = checkpoint["idx2label"]
@@ -166,5 +166,4 @@ def classify(error_input: str) -> dict:
         "action_detail": "Review the fix category and apply appropriate remediation.",
         "user_message": f"Error detected. Category: {fix_category}.",
         "confidence": round(confidence.item(), 3),
-        "source": "model",
-    }
+        "sour

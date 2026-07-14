@@ -134,7 +134,7 @@ class SequenceAnomalyDetector:
 
         vocab_size = len(self.vocab)
         self.model = DeepLogLSTM(vocab_size=vocab_size)
-        state = torch.load(model_path, map_location="cpu")
+        state = torch.load(model_path, map_location="cpu", weights_only=False)
         self.model.load_state_dict(state)
         self.model.eval()
         self._loaded = True
@@ -349,4 +349,4 @@ if __name__ == "__main__":
     print("Attack signature:")
     r = d.analyze(attack)
     print(f"  anomalous={r['is_anomalous']}, score={r['anomaly_score']}")
-    print(f"  {r['recommendation']}")
+    print(f"  {r['r
