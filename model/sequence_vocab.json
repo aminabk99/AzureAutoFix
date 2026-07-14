@@ -1,0 +1,11 @@
+{
+  "<PAD>": 0,
+  "<UNK>": 1,
+  "AADSTS50055": 2,
+  "AADSTS50076": 3,
+  "AADSTS50079": 4,
+  "AADSTS50126": 5,
+  "AADSTS50158": 6,
+  "AADSTS90033": 7,
+  "SUCCESS": 8
+}
