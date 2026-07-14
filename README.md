@@ -292,11 +292,13 @@ AzureAutoFix/
 
 ## Future Work
 
-- **Real training data** — connect `collect_azure_logs.py` to a live tenant and retrain DeepLog on real session logs for production-grade anomaly detection
-- **Fine-tuned DistilBERT** — replace the custom Transformer with a pre-trained `distilbert-base-uncased` fine-tuned on Azure error descriptions for better generalization on unknown codes
-- **Real-time streaming** — hook into Azure Event Hub to run DeepLog on live sign-in events as they arrive rather than post-session
+- **Expanded error coverage** — grow `data/azure_errors.json` from 15 to 40-50 of the most common AADSTS codes, covering ~95% of real-world Azure AD issues. Each new entry expands the lookup table the system handles at 100% confidence
+- **Fine-tuned DistilBERT** — replace the custom lightweight Transformer with a pre-trained `distilbert-base-uncased` fine-tuned on Azure error descriptions. Unlike the current model which learns from 15 labeled examples, DistilBERT understands English and can predict fix categories for error codes it has never seen — making the system genuinely generalize beyond the lookup table
+- **More auto-fixable errors** — extend the Graph API client with additional write operations (conditional access policy adjustments, guest account provisioning, license assignment) to grow the `admin_auto` category beyond the current 7 errors
+- **Real training data** — connect `collect_azure_logs.py` to a live Azure tenant and retrain DeepLog on real sign-in session logs for production-grade anomaly detection, replacing the current 49 synthetic sequences
+- **Real-time streaming** — hook into Azure Event Hub to run DeepLog on live sign-in events as they arrive rather than analyzing sessions after the fact
 - **Multi-tenant support** — extend the Graph API client to manage multiple Azure tenants from a single deployment
-- **Feedback loop** — log whether auto-fixes succeeded and retrain the classifier on failure cases
+- **Feedback loop** — log whether auto-fixes succeeded and retrain the classifier on failure cases to improve accuracy over time
 
 ---
 
