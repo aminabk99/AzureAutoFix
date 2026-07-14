@@ -73,14 +73,14 @@ class AzureErrorClassifier(nn.Module):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model, padding_idx=0)
         self.pos_enc = PositionalEncoding(d_model, max_len, dropout)
-        self.layers = nn.ModuleList([TransformerBlock(d_model, num_heads, ff_dim, dropout) for _ in range(num_layers)])
+        self.blocks = nn.ModuleList([TransformerBlock(d_model, num_heads, ff_dim, dropout) for _ in range(num_layers)])
         self.norm = nn.LayerNorm(d_model)
         self.classifier = nn.Linear(d_model, num_classes)
 
     def forward(self, x):
         x = self.pos_enc(self.embedding(x))
-        for layer in self.layers:
-            x = layer(x)
+        for blk in self.blocks:
+            x = blk(x)
         return self.classifier(self.norm(x).mean(dim=1))
 
 
