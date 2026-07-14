@@ -349,4 +349,4 @@ if __name__ == "__main__":
     print("Attack signature:")
     r = d.analyze(attack)
     print(f"  anomalous={r['is_anomalous']}, score={r['anomaly_score']}")
-    print(f"  {r['r
+    print(f"  {r['recommendation']}")

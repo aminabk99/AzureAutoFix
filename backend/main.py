@@ -269,4 +269,5 @@ def escalate(req: AnalyzeRequest):
         error_code=result["error_code"],
         explanation=result["explanation"],
         action_detail=result["action_detail"],
-    
+    )
+    return msg

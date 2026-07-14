@@ -166,4 +166,5 @@ def classify(error_input: str) -> dict:
         "action_detail": "Review the fix category and apply appropriate remediation.",
         "user_message": f"Error detected. Category: {fix_category}.",
         "confidence": round(confidence.item(), 3),
-        "sour
+        "source": "model",
+    }

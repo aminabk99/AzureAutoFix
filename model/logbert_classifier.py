@@ -369,4 +369,4 @@ if __name__ == "__main__":
     print(f"logits shape:      {out['logits'].shape}")       # (2, 4)
     print(f"mlkp_logits shape: {out['mlkp_logits'].shape}") # (2, 2, 500)
     print(f"dist_repr shape:   {out['dist_repr'].shape}")    # (2, 128)
-    print("Architectur
+    print("Architecture check passed.")
