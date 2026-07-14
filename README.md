@@ -331,11 +331,7 @@ The gate ensures the exact-lookup path (confidence = 1.0) never regresses as the
 
 ---
 
-## Resume Bullet
 
-> Built an agentic Azure AD error resolution system implementing three AIOps research papers (Drain ICWS 2017, LogBERT IJCNN 2021, DeepLog CCS 2017) as a production log analysis pipeline — parsing raw error strings, classifying fix categories via a bidirectional Transformer with LOOCV evaluation, detecting session-level attack patterns (credential stuffing, brute force) via LSTM sequence modeling, and resolving admin-level errors automatically via the Microsoft Graph API
-
----
 
 <div align="center">
   <sub>Built by <a href="https://github.com/aminabk99">Amina Bilal</a> · <a href="https://linkedin.com/in/amina-bilal-926340382">LinkedIn</a></sub>
