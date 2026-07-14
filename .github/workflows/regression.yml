@@ -1,0 +1,47 @@
+name: Classification Regression Gate
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  regression:
+    name: All 15 AADSTS codes → classify() must pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Train model (needed if .pt not in repo)
+        run: |
+          if [ ! -f model/azure_error_model.pt ]; then
+            echo "Model not found — training from scratch..."
+            python model/train_local.py
+          else
+            echo "Pre-trained model found — skipping training."
+          fi
+
+      - name: Run regression gate
+        run: python -m monitoring.regression_gate
+
+      - name: Upload trace log (if exists)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-traces
+          path: monitoring/traces.jsonl
+          if-no-files-found: ignore

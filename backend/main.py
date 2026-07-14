@@ -16,6 +16,8 @@ from model.inference import classify, load_model
 from backend.graph_api import GraphAPIClient
 from backend.escalation import generate_escalation_message
 from backend.auth import get_app_token
+from monitoring.metrics import compute_metrics
+from monitoring.middleware import LatencyTracingMiddleware
 
 # -- Production safety switches ----------------------------------------------
 # DEMO_API_KEY: if set, /fix requires a matching `X-API-Key` header.
@@ -50,6 +52,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LatencyTracingMiddleware)
 
 # Load model on startup
 @app.on_event("startup")
@@ -271,3 +274,17 @@ def escalate(req: AnalyzeRequest):
         action_detail=result["action_detail"],
     )
     return msg
+
+
+# -- GET /metrics -------------------------------------------------------------
+
+@app.get("/metrics")
+def get_metrics(last_n: int = 1000):
+    """
+    Returns p50/p95/p99 latency, per-endpoint breakdown, and error code
+    frequency computed from the last N requests in monitoring/traces.jsonl.
+    """
+    try:
+        return compute_metrics(last_n=last_n)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Metrics computation failed: {exc}") from exc

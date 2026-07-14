@@ -279,6 +279,35 @@ AzureAutoFix/
 | Extension | Chrome Manifest V3 |
 | Deploy | Docker + Railway |
 
+
+---
+
+## Monitoring & Observability
+
+AzureAutoFix records per-request latency and error code frequency to `monitoring/traces.jsonl` via a lightweight FastAPI middleware — no external dependencies.
+
+**GET /metrics**
+```json
+{
+  "request_count": 412,
+  "error_rate": 0.002,
+  "latency_ms": {"p50": 38.1, "p95": 142.7, "p99": 310.4, "mean": 51.2},
+  "per_endpoint": {
+    "/analyze": {"p50": 35.0, "p95": 130.0, "p99": 290.0, "count": 389}
+  },
+  "top_error_codes": [["AADSTS50126", 87], ["AADSTS700016", 42]]
+}
+```
+
+**Regression gate** — runs on every push, zero Azure credentials needed:
+```bash
+python -m monitoring.regression_gate
+# Tests all 15 known AADSTS codes through classify()
+# Fails CI if any code returns wrong error_code, wrong source, or confidence < 1.0
+```
+
+The gate ensures the exact-lookup path (confidence = 1.0) never regresses as the dataset grows. See `.github/workflows/regression.yml`.
+
 ---
 
 ## Security
