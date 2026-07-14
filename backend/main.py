@@ -38,8 +38,11 @@ def require_api_key(x_api_key: Optional[str] = Header(default=None)):
 app = FastAPI(
     title="AzureAutoFix API",
     description="Agentic Azure AD error resolution via LLM + MS Graph API",
-    version="1.0.0",
+    version="2.0.0",
 )
+
+from backend.analyze_sequence import router as sequence_router
+app.include_router(sequence_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -185,4 +188,86 @@ def analyze(req: AnalyzeRequest):
     Step 1: Classify the error and determine fix path.
     Returns structured analysis including fix_category and action.
     """
-    if not 
+    if not req.error_input.strip():
+        raise HTTPException(status_code=400, detail="error_input cannot be empty")
+    result = classify(req.error_input)
+    return result
+
+
+@app.post("/fix", response_model=FixResponse, dependencies=[Depends(require_api_key)])
+async def fix_error(req: FixRequest):
+    """
+    Step 2 (admin only): Execute the fix via MS Graph API.
+    Requires a valid admin access token.
+    """
+    # Use the caller-supplied token. Falling back to the app-level
+    # client-credentials token is opt-in (ALLOW_APP_TOKEN_FALLBACK=true)
+    # and intended for local/dev use only -- never enable it on a public
+    # deployment, since it would let any caller mutate this Azure tenant.
+    token = req.access_token
+    if not token:
+        if ALLOW_APP_TOKEN_FALLBACK:
+            token = get_app_token()
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "access_token is required for /fix on this deployment. "
+                    "Set ALLOW_APP_TOKEN_FALLBACK=true in your local .env to "
+                    "use app-level credentials for testing."
+                ),
+            )
+    client = GraphAPIClient(token)
+    fix_category = req.fix_category
+
+    try:
+        if fix_category == "admin_auto":
+            result = await _dispatch_admin_fix(client, req)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Fix category '{fix_category}' cannot be auto-fixed. Use /escalate for admin_escalate errors."
+            )
+        return FixResponse(
+            success=True,
+            fix_applied=fix_category,
+            details=result,
+            error_code=req.error_code,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _dispatch_admin_fix(client: GraphAPIClient, req: FixRequest) -> str:
+    """Route to the correct Graph API action based on error code."""
+    code = req.error_code
+
+    dispatch = {
+        "AADSTS900971": lambda: client.add_redirect_uri(req.app_id, req.redirect_uri),
+        "AADSTS50055":  lambda: client.force_password_reset(req.user_id),
+        "AADSTS50057":  lambda: client.enable_account(req.user_id),
+        "AADSTS700011": lambda: client.rotate_app_secret(req.app_id),
+        "AADSTS90094":  lambda: client.grant_admin_consent(req.app_id),
+        "AADSTS70011":  lambda: client.update_api_permissions(req.app_id, req.new_scope),
+        "AADSTS50053":  lambda: client.unlock_account(req.user_id),
+    }
+
+    if code not in dispatch:
+        return f"No automated fix registered for {code}. Manual review required."
+
+    return await dispatch[code]()
+
+
+@app.post("/escalate", response_model=EscalateResponse)
+def escalate(req: AnalyzeRequest):
+    """
+    For errors requiring admin action when the current user is NOT an admin.
+    Returns a pre-written email + Teams message the user can send.
+    """
+    result = classify(req.error_input)
+    msg = generate_escalation_message(
+        error_code=result["error_code"],
+        explanation=result["explanation"],
+        action_detail=result["action_detail"],
+    )
+    return msg

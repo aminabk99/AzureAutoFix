@@ -174,4 +174,20 @@ async function doFix(errorCode, analysis) {
         fix_category: analysis.fix_category,
         access_token: accessToken || "",
         user_id: userId || null,
-        app_id: appId 
+        app_id: appId || null,
+        redirect_uri: redirectUri || null,
+      }),
+    });
+    const result = await resp.json();
+    if (result.success) {
+      progressLabel.textContent = `✅ ${result.details}`;
+      progressFill.style.background = "#107c10";
+    } else {
+      progressLabel.textContent = `❌ Fix failed: ${result.detail || "Unknown error"}`;
+    }
+  } catch (e) {
+    progressLabel.textContent = `❌ Error: ${e.message}`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loadState);

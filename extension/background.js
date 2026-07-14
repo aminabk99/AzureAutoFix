@@ -69,4 +69,19 @@ async function handleFix(errorCode, analysisResult) {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": DEMO_API_KEY },
       body: JSON.stringify({
-        error_code: erro
+        error_code: errorCode,
+        fix_category: analysisResult?.fix_category,
+        access_token: accessToken || "",
+        user_id: userId || null,
+        app_id: appId || null,
+        redirect_uri: redirectUri || null,
+      }),
+    });
+    const result = await resp.json();
+    chrome.action.setBadgeText({ text: "✓" });
+    chrome.action.setBadgeBackgroundColor({ color: "#107c10" });
+    return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}

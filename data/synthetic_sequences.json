@@ -1,0 +1,115 @@
+{
+  "_description": "Synthetic Azure AD authentication event sequences for DeepLog LSTM training. Follows the methodology of Du et al. (CCS 2017): train on normal sequences; flag deviations at inference. In production, replace with real session logs from Azure Monitor, Microsoft Sentinel, or your SIEM.",
+  "_methodology": "Normal sequences represent typical enterprise authentication patterns based on Microsoft documentation and Azure AD error code semantics. Anomalous sequences represent known attack patterns (credential stuffing, account takeover) and misconfiguration signatures.",
+  "_vocabulary": {
+    "AADSTS50057": "Account disabled (admin_auto)",
+    "AADSTS50126": "Invalid credentials (user)",
+    "AADSTS90094": "Admin consent required (admin_auto)",
+    "AADSTS90033": "Transient error (retry)",
+    "AADSTS50020": "External user not in tenant (admin_escalate)",
+    "AADSTS50055": "Password expired (user)",
+    "AADSTS50076": "MFA required (user)",
+    "AADSTS50079": "MFA registration required (user)",
+    "AADSTS50158": "External security challenge (user)",
+    "AADSTS70011": "Invalid scope (admin_auto)",
+    "AADSTS65001": "User not consented (admin_auto)",
+    "AADSTS53003": "Conditional access block (admin_auto)",
+    "AADSTS50105": "User not assigned to app (admin_auto)",
+    "AADSTS50053": "Account locked (user)",
+    "AADSTS50034": "User does not exist (user)",
+    "SUCCESS": "Successful authentication"
+  },
+  "normal_sequences": [
+    ["AADSTS50126", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50076", "SUCCESS"],
+    ["AADSTS50079", "SUCCESS"],
+    ["AADSTS90033", "AADSTS90033", "SUCCESS"],
+    ["AADSTS50055", "SUCCESS"],
+    ["AADSTS50158", "SUCCESS"],
+    ["AADSTS50126", "AADSTS50126", "SUCCESS"],
+    ["AADSTS50076", "AADSTS50076", "SUCCESS"],
+    ["AADSTS90033", "SUCCESS"],
+    ["AADSTS50079", "AADSTS50079", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50158", "AADSTS50158", "SUCCESS"],
+    ["AADSTS90033", "AADSTS90033", "AADSTS90033", "SUCCESS"],
+    ["AADSTS50126", "SUCCESS"],
+    ["AADSTS50076", "SUCCESS"],
+    ["AADSTS50079", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50055", "SUCCESS"],
+    ["AADSTS90033", "AADSTS90033", "SUCCESS"],
+    ["AADSTS50126", "AADSTS50126", "AADSTS50126", "SUCCESS"],
+    ["AADSTS50076", "AADSTS50079", "SUCCESS"],
+    ["AADSTS50158", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50126", "SUCCESS"],
+    ["AADSTS90033", "SUCCESS"],
+    ["AADSTS50055", "SUCCESS"],
+    ["AADSTS50076", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50079", "SUCCESS"],
+    ["AADSTS50126", "SUCCESS"],
+    ["AADSTS90033", "AADSTS90033", "SUCCESS"],
+    ["AADSTS50158", "AADSTS50158", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50126", "AADSTS50126", "SUCCESS"],
+    ["AADSTS50076", "SUCCESS"],
+    ["AADSTS50055", "SUCCESS"],
+    ["AADSTS90033", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50079", "SUCCESS"],
+    ["AADSTS50126", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS90033", "AADSTS90033", "AADSTS90033", "SUCCESS"],
+    ["AADSTS50158", "SUCCESS"],
+    ["AADSTS50076", "AADSTS50076", "SUCCESS"],
+    ["AADSTS50055", "SUCCESS"],
+    ["SUCCESS"],
+    ["AADSTS50126", "AADSTS50126", "AADSTS50126", "SUCCESS"],
+    ["AADSTS50079", "SUCCESS"]
+  ],
+  "anomalous_sequences": [
+    {
+      "sequence": ["AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50053"],
+      "label": "credential_stuffing",
+      "description": "Repeated failed credentials leading to account lockout — classic credential-stuffing signature"
+    },
+    {
+      "sequence": ["AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126"],
+      "label": "brute_force",
+      "description": "7 consecutive failed credential attempts without lockout — brute force or password spray"
+    },
+    {
+      "sequence": ["AADSTS50057", "AADSTS50126", "AADSTS50053"],
+      "label": "unusual_transition",
+      "description": "Disabled account then bad credentials then lockout: unusual ordering"
+    },
+    {
+      "sequence": ["AADSTS50034", "AADSTS50126", "AADSTS50053"],
+      "label": "account_probing",
+      "description": "Non-existent user then bad credentials then lockout: account enumeration and stuffing"
+    },
+    {
+      "sequence": ["AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50126", "AADSTS50057"],
+      "label": "credential_stuffing_then_disable",
+      "description": "Repeated failed attempts followed by account disable"
+    },
+    {
+      "sequence": ["AADSTS53003", "AADSTS53003", "AADSTS53003", "AADSTS53003", "AADSTS53003"],
+      "label": "ca_bypass_attempt",
+      "description": "Repeated conditional access blocks — possible attempt to find CA policy gaps"
+    },
+    {
+      "sequence": ["AADSTS50126", "AADSTS50034", "AADSTS50126", "AADSTS50034"],
+      "label": "enumeration",
+      "description": "Alternating bad-creds and not-found errors — systematic account enumeration"
+    },
+    {
+      "sequence": ["AADSTS90033", "AADSTS90033", "AADSTS90033", "AADSTS90033", "AADSTS90033", "AADSTS90033", "AADSTS90033", "AADSTS90033"],
+      "label": "retry_storm",
+      "description": "8+ consecutive transient errors — likely misconfigured retry logic"
+    }
+  ]
+}
