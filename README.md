@@ -14,9 +14,9 @@ Watches Microsoft login pages for AADSTS error codes in real time. The instant a
 
 **Three fix paths:**
 
-- **You fix it** — wrong password, MFA not enrolled, account not yet provisioned. Exact steps shown inline.
-- **Auto-fixed** — backend calls Microsoft Graph and resolves it without human involvement (unlock account, add redirect URI, rotate expired secret, etc.)
-- **Escalate** — generates a pre-filled IT support email. You hit send.
+- **You fix it** : wrong password, MFA not enrolled, account not yet provisioned. Exact steps shown inline.
+- **Auto-fixed** : backend calls Microsoft Graph and resolves it without human involvement (unlock account, add redirect URI, rotate expired secret, etc.)
+- **Escalate** : generates a pre-filled IT support email. You hit send.
 
 ---
 
@@ -30,7 +30,7 @@ Watches Microsoft login pages for AADSTS error codes in real time. The instant a
 
 ---
 
-## The AI layer — three research papers
+## The AI layer — Three research papers
 
 Most error-detection tools stop at pattern matching. AzureAutoFix layers three published techniques on top of the lookup table to handle errors it has never seen before and to detect attacks across a session.
 
