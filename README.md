@@ -1,145 +1,90 @@
-<div align="center">
+# AzureAutoFix
 
-# ⚡ AzureAutoFix
-### Agentic Azure AD Error Resolution — Detect, Diagnose, and Fix in Under 10 Seconds
-
-An agentic system that detects Azure AD (Entra ID) authentication errors, classifies them using a **three-paper AIOps research pipeline**, and resolves them automatically via the **Microsoft Graph API** — exposed as a FastAPI backend with a Chrome extension for live detection.
-
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-LogBERT_+_DeepLog-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
-![Azure](https://img.shields.io/badge/Azure-MS_Graph_API-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Railway_Deploy-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-
-**🔗 Live API:** [azureautofix-production.up.railway.app](https://azureautofix-production.up.railway.app) · [Swagger docs](https://azureautofix-production.up.railway.app/docs)
-
-</div>
+Chrome extension that catches Microsoft Entra (Azure AD) errors the moment they appear and resolves them — automatically where possible, with guided steps or a drafted IT email where not.
 
 ---
 
-## What It Does
+## What it does
 
-When a user hits an Azure AD error, AzureAutoFix detects it, figures out what's wrong, and either fixes it automatically or tells the user exactly what to do — in under 10 seconds.
+Watches Microsoft login pages for AADSTS error codes in real time. The instant an error appears it:
 
-**Three outcomes depending on error type:**
-- **User-fixable** — plain English instructions for the end user (e.g., wrong password → reset it)
-- **Auto-fix** — backend calls the Graph API and resolves the issue without manual steps (e.g., unlocks account, adds redirect URI)
-- **Escalate** — generates a pre-written email + Teams message the user can send directly to IT
+1. Translates it into plain English — no Googling
+2. Decides the right fix path based on what kind of problem it is
+3. Acts — either walks you through fixing it yourself, calls the Graph API to fix it automatically, or writes the IT support email for you
 
----
+**Three fix paths:**
 
-## Features
-
-- **Chrome extension** watches for AADSTS error codes live on any page
-- **Drain log parser** strips trace IDs and noise from raw Azure AD error strings, extracting the structured AADSTS code (He et al., ICWS 2017)
-- **LogBERT classifier** uses a bidirectional Transformer encoder to predict the fix category — works on error codes it hasn't seen before, not just a lookup table (Guo et al., IJCNN 2021)
-- **DeepLog anomaly detector** detects attack patterns like credential stuffing across a session by modeling normal error sequences with a 2-layer LSTM (Du et al., CCS 2017)
-- **Microsoft Graph API integration** auto-resolves 7 admin-level errors (account unlock, password reset, redirect URI registration, etc.)
-- **Auto-escalation** generates a pre-written IT message with error details and recommended action
-
-### Supported Errors
-
-| Error Code | Issue | Resolution |
-|---|---|---|
-| `AADSTS50053` | Account locked out | ✅ Auto-fix |
-| `AADSTS50057` | Account disabled | ✅ Auto-fix |
-| `AADSTS50055` | Password expired | ✅ Auto-fix |
-| `AADSTS900971` | Redirect URI not registered | ✅ Auto-fix |
-| `AADSTS90094` | Admin consent not granted | ✅ Auto-fix |
-| `AADSTS70011` | Invalid scope | ✅ Auto-fix |
-| `AADSTS700011` | Client secret expired | ✅ Auto-fix |
-| `AADSTS50126` | Wrong credentials | 📋 User-guided |
-| `AADSTS50076` | MFA required | 📋 User-guided |
-| `AADSTS65001` | Permissions misconfigured | 📧 Escalate to admin |
-| `AADSTS20050` | External user not found | 📧 Escalate to admin |
-| Unknown codes | Any other AADSTS error | LogBERT infers fix category |
+- **You fix it** — wrong password, MFA not enrolled, account not yet provisioned. Exact steps shown inline.
+- **Auto-fixed** — backend calls Microsoft Graph and resolves it without human involvement (unlock account, add redirect URI, rotate expired secret, etc.)
+- **Escalate** — generates a pre-filled IT support email. You hit send.
 
 ---
 
-## Architecture
+## Error coverage
 
-```
-User hits Azure AD error
-        │
-        ▼
-Chrome Extension detects AADSTS code on page
-        │
-        ▼
-POST /analyze
-  ├─ Drain parser      →  extracts log key from raw string
-  └─ LogBERT encoder   →  classifies fix_category
-        │
-        ├── "user"           →  Show user what to do
-        ├── "retry"          →  Tell user to retry
-        ├── "admin_escalate" →  Generate IT email + Teams message
-        └── "admin_auto"     →  Show "Fix Now" button
-                                      │
-                                      ▼
-                               POST /fix (admin token required)
-                                 └─ MS Graph API call → resolved ✅
+| Category | Count |
+|----------|-------|
+| Known errors handled with 100% confidence (lookup table) | 15 |
+| Of those, auto-fixed via Graph API | 7 |
+| Unknown errors classified by ML model | ∞ |
 
-[Optional] POST /analyze_sequence
-  └─ DeepLog LSTM  →  scores anomaly across session error sequence
-```
+---
+
+## The AI layer — three research papers
+
+Most error-detection tools stop at pattern matching. AzureAutoFix layers three published techniques on top of the lookup table to handle errors it has never seen before and to detect attacks across a session.
+
+### Drain — log parsing (ICWS 2017)
+> He, P. et al. *Drain: An Online Log Parsing Approach with Fixed Depth Tree.* IEEE ICWS 2017.
+
+Raw AADSTS error strings are noisy — they embed dynamic values (tenant IDs, redirect URIs, timestamps) that make direct comparison impossible. Drain parses each error string into a clean, stable template by building a fixed-depth prefix tree. The result is a structured log key that the downstream models can reason about consistently.
+
+### LogBERT — error classification (IJCNN 2021)
+> Guo, H. et al. *LogBERT: Log Anomaly Detection via BERT.* IJCNN 2021.
+
+A bidirectional Transformer fine-tuned on tokenised log sequences. For errors not in the lookup table, LogBERT classifies which fix path applies — user error, auto-fixable, or escalation — based on learned representations of error semantics. Bidirectional context means it reads the full error message before deciding, not just the error code prefix.
+
+### DeepLog — session-level attack detection (CCS 2017)
+> Du, M. et al. *DeepLog: Anomaly Detection and Diagnosis from System Logs using Deep Learning.* ACM CCS 2017.
+
+An LSTM that models the expected sequence of log events across a login session. Where Drain + LogBERT handle individual errors, DeepLog watches the pattern: repeated failures across accounts, rapid succession of different error codes, unusual sequences that match credential stuffing or brute force profiles. When the session pattern deviates from the learned normal, it raises an alert.
+
+---
+
+## CI pipeline — regression gating and quality metrics
+
+The existing CI suite is extended with:
+
+- **Regression gating** — each PR must pass all 15 known-error lookup cases before merge; any fix-path regression blocks the build
+- **Classification accuracy gate** — LogBERT F1 on the held-out error set must stay above threshold; a model change that degrades classification fails CI
+- **Auto-fix integration tests** — Graph API calls are mocked; the seven auto-fix paths are exercised end-to-end on every push
+- **DeepLog sequence tests** — known attack sequences (credential stuffing pattern, brute force pattern) must be flagged; false-positive rate on normal sessions is tracked as a CI metric
 
 ---
 
 ## Setup
 
-**Requirements:** Python 3.11+ · Azure AD tenant with admin access
+**Requirements:** Node 18+, Python 3.10+, a Microsoft Entra app registration with Graph API permissions.
 
-**1. Clone & install**
 ```bash
-git clone https://github.com/aminabk99/AzureAutoFix
-cd AzureAutoFix
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+git clone https://github.com/aminabk99/azureautofix
+cd azureautofix
+pip install -r requirements.txt        # backend + ML models
+cd extension && npm install && npm run build
 ```
 
-**2. Train the models**
-```bash
-python model/train_local.py      # LogBERT fix-category classifier
-python model/train_sequence.py   # DeepLog LSTM anomaly detector
+Load the built extension in Chrome: `chrome://extensions` → Developer mode → Load unpacked → `extension/dist`
+
+Add to `.env`:
+
 ```
-
-**3. Configure Azure**
-```bash
-cp .env.example .env
-# Fill in AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
+AZURE_CLIENT_ID=...
+AZURE_TENANT_ID=...
+AZURE_CLIENT_SECRET=...
 ```
-
-Register an app in Azure Portal with these Graph API permissions (grant admin consent):
-`User.ReadWrite.All` · `Application.ReadWrite.All` · `Directory.ReadWrite.All` · `DelegatedPermissionGrant.ReadWrite.All`
-
-**4. Run**
-```bash
-uvicorn backend.main:app --reload --port 8000
-```
-
-**5. Load Chrome extension**
-
-Open `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select the `extension/` folder.
-
-**Try the live demo** — no setup needed: [azureautofix-production.up.railway.app/docs](https://azureautofix-production.up.railway.app/docs)
-
-> `/analyze` and `/escalate` are open and read-only. `/fix` requires an admin `access_token` and `X-API-Key` header.
 
 ---
 
-## Stack
+## Tech
 
-| Layer | Tech |
-|---|---|
-| Log Parsing | Drain fixed-depth parse tree (He et al., ICWS 2017) |
-| Error Classifier | LogBERT bidirectional Transformer (Guo et al., IJCNN 2021) |
-| Anomaly Detector | DeepLog 2-layer LSTM (Du et al., CCS 2017) |
-| Backend | FastAPI + httpx |
-| Graph API | Microsoft Graph API v1.0 |
-| Extension | Chrome Manifest V3 |
-| Deploy | Docker + Railway |
-
----
-
-<div align="center">
-  <sub>Built by <a href="https://github.com/aminabk99">Amina Bilal</a> · <a href="https://linkedin.com/in/amina-bilal-926340382">LinkedIn</a></sub>
-</div>
+Chrome Extension (MV3) · FastAPI · Microsoft Graph API · MSAL · Drain · LogBERT (HuggingFace) · DeepLog (PyTorch) · pytest · GitHub Actions
