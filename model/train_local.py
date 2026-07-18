@@ -25,12 +25,35 @@ papers (e.g., as produced by sklearn.metrics.classification_report).
 import json
 import math
 import os
+import random
 from collections import Counter
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+
+# ── Reproducibility ──────────────────────────────────────────────────────────
+# Training was previously unseeded: weight init is random and the DataLoader
+# shuffles, so consecutive runs disagreed on individual LOOCV folds and the
+# reported accuracy moved between runs. An evaluation number you cannot
+# reproduce is not an evaluation number.
+#
+# set_seed() is called once at startup and again before every fold, so each
+# fold trains from an identical starting point and the whole run is
+# repeatable. Override with SEED=... to measure run-to-run variance
+# deliberately rather than by accident.
+SEED = int(os.getenv("SEED", "42"))
+
+
+def set_seed(seed: int = SEED) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+set_seed()
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -161,9 +184,16 @@ class AzureErrorClassifier(nn.Module):
 def make_model():
     return AzureErrorClassifier(vocab_size=VOCAB_SIZE, num_classes=NUM_CLASSES)
 
-def train_model(train_texts, train_labels, epochs=80, device="cpu"):
+def train_model(train_texts, train_labels, epochs=80, device="cpu", seed=SEED):
+    # Re-seed per call so every LOOCV fold starts from the same weights and
+    # sees the same shuffle order. Without this each fold is a different
+    # experiment and the folds aren't comparable to each other.
+    set_seed(seed)
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+
     dataset = ErrorDataset(train_texts * 5, train_labels * 5)  # 5x augmentation
-    loader  = DataLoader(dataset, batch_size=8, shuffle=True)
+    loader  = DataLoader(dataset, batch_size=8, shuffle=True, generator=generator)
     model   = make_model().to(device)
     opt     = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     sched   = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=50)
