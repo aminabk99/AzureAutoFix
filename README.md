@@ -20,6 +20,33 @@ Watches Microsoft login pages for AADSTS error codes in real time. The instant a
 
 ---
 
+## Accuracy
+
+| What it does | Result | How it's measured |
+|---|---|---|
+| Resolves the 15 curated codes | **100%** | Every code checked in CI on every push |
+| Finds the right fix from a plain-English description | **91.7%** | 12 hand-written admin-phrasing queries, none appearing verbatim in the corpus |
+| Retrieves the right error code (top-3) | **98.9%** | Self-retrieval across all 349 catalog descriptions |
+| Recognises non-Azure input and abstains | **4/4** | Deliberate out-of-domain queries |
+| p50 latency, lookup path | **2.6 ms** | Measured from live request traces |
+
+**The transformer tier scores 53.3%** under leave-one-out cross-validation
+against a 47% majority-class baseline — roughly one extra correct answer out of
+fifteen. That is a dataset limit, not a modelling one: N=15, and two of the four
+classes have a single example each, so LOOCV leaves nothing to train on for
+them. Reported here rather than omitted, because it is the reason the
+architecture looks the way it does.
+
+Retrieval outperforms the model at the same task by a wide margin, so it runs
+first and the model sits behind a 0.55 confidence floor as a last resort. When
+all three tiers fall short the API returns `abstained: true` at confidence 0.0
+instead of guessing — a wrong automated write against a live tenant costs far
+more than an unanswered question.
+
+Training is seeded (`SEED`, default 42) so these figures reproduce across runs.
+
+---
+
 ## Error coverage
 
 Resolution runs in three tiers, cheapest and most certain first. Each tier only
@@ -148,16 +175,21 @@ sequence detector has no coverage gate of its own.
 
 ## Setup
 
-**Requirements:** Node 18+, Python 3.10+, a Microsoft Entra app registration with Graph API permissions.
+**Requirements:** Python 3.10+. A Microsoft Entra app registration is only
+needed for sign-in and auto-fix — analysis works without one.
 
 ```bash
-git clone https://github.com/aminabk99/azureautofix
-cd azureautofix
-pip install -r requirements.txt        # backend + ML models
-cd extension && npm install && npm run build
+git clone https://github.com/aminabk99/AzureAutoFix
+cd AzureAutoFix
+pip install -r requirements.txt
 ```
 
-Load the built extension in Chrome: `chrome://extensions` → Developer mode → Load unpacked → `extension/dist`
+The Chrome extension is plain Manifest V3 with no build step — load
+`extension/` directly: `chrome://extensions` → Developer mode → Load unpacked.
+
+`torch` is optional. Tiers 1 and 2 (lookup and retrieval) are pure stdlib and
+answer virtually all traffic; without torch the service simply reports the
+model tier as unavailable via `/status` rather than failing to start.
 
 Add to `.env`:
 
