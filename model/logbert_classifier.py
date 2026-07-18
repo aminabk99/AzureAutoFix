@@ -1,4 +1,19 @@
 """
+STATUS: reference implementation, NOT wired into the request path.
+=================================================================
+This module is not imported by the backend, has no trained checkpoint
+(`logbert_model.pt` is never produced by any script here), and is not covered
+by CI. Fix-category classification for errors outside the curated set is
+handled by model/retrieval.py.
+
+It is kept for a future A/B against the retrieval tier. Do not cite it as a
+live component.
+
+Note also that the docstring below describes DistilBERT/HuggingFace framing,
+but the code is a self-contained Transformer encoder with no `transformers`
+dependency -- see the comment above the architecture section. The parameter
+counts and GLUE figures quoted are DistilBERT's, not this implementation's.
+
 Azure AD Error Classifier — LogBERT-inspired (Guo et al., IJCNN 2021)
 ======================================================================
 Replaces the from-scratch Transformer in the original AzureAutoFix with a

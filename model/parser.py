@@ -7,7 +7,8 @@ log keys (AADSTS codes and event templates) from raw Azure AD error strings.
 The three-paper AIOps pipeline this belongs to:
   [1] Drain (ICWS 2017)  — THIS FILE: parse raw strings → log keys
   [2] DeepLog (CCS 2017) — model/sequence_detector.py: detect anomalous sequences
-  [3] LogBERT (IJCNN 2021) — model/logbert_classifier.py: classify fix category
+  [3] Fix-category classification — model/retrieval.py (hybrid retrieval).
+      model/logbert_classifier.py is reference only and is not wired in.
 
 Drain design principles applied here:
   - Step 1: Preprocess by domain knowledge (regex for AADSTS codes, UUIDs, timestamps)

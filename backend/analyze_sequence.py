@@ -7,7 +7,8 @@ classification to detect anomalous patterns across a session window.
 This implements the second layer of the three-paper AIOps pipeline:
   [1] Drain  → model/parser.py          (parse raw strings -> log keys)
   [2] DeepLog -> THIS FILE              (detect anomalous sequences)
-  [3] LogBERT -> model/logbert_classifier.py (classify fix category)
+  [3] Fix-category classification -> model/retrieval.py (hybrid retrieval;
+      model/logbert_classifier.py is reference only, not wired in)
 
 Endpoint: POST /analyze_sequence
 Request body:
