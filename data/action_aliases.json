@@ -1,0 +1,13 @@
+{
+  "_comment": "One canonical name per remediation. The 15 hand-curated errors and the rule-labelled catalog grew separate vocabularies for identical concepts (unlock_account vs enable_or_unlock_account, rotate_app_secret vs rotate_client_secret). Two names for one action meant the classifier could not predict curated codes at all -- the correct label was absent from its label space -- and every alias needed its own translation string. This maps the duplicates onto a single canonical set, applied in model/build_catalog.py.",
+  "aliases": {
+    "prompt_reauth": "reset_credentials",
+    "force_password_reset": "reset_credentials",
+    "unlock_account": "enable_or_unlock_account",
+    "enable_account": "enable_or_unlock_account",
+    "rotate_app_secret": "rotate_client_secret",
+    "trigger_consent_flow": "complete_consent_prompt",
+    "escalate_to_admin": "provision_or_invite_user",
+    "retry": "retry_with_backoff"
+  }
+}

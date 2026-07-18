@@ -381,7 +381,7 @@
     "symbolic_name": "UserUnauthorized",
     "description": "User account from external identity provider does not exist in tenant.",
     "fix_category": "admin_escalate",
-    "action": "escalate_to_admin",
+    "action": "provision_or_invite_user",
     "user_or_admin": "admin",
     "source": "curated",
     "citation": {
@@ -527,7 +527,7 @@
     "symbolic_name": "",
     "description": "Account is locked out due to too many failed sign-in attempts.",
     "fix_category": "admin_auto",
-    "action": "unlock_account",
+    "action": "enable_or_unlock_account",
     "user_or_admin": "admin",
     "source": "curated",
     "citation": {
@@ -543,7 +543,7 @@
     "symbolic_name": "InvalidPasswordExpiredPassword",
     "description": "The user's password has expired and must be reset before they can sign in.",
     "fix_category": "admin_auto",
-    "action": "force_password_reset",
+    "action": "reset_credentials",
     "user_or_admin": "admin",
     "source": "curated",
     "citation": {
@@ -572,7 +572,7 @@
     "symbolic_name": "UserDisabled",
     "description": "The user account has been disabled in Azure Active Directory.",
     "fix_category": "admin_auto",
-    "action": "enable_account",
+    "action": "enable_or_unlock_account",
     "user_or_admin": "admin",
     "source": "curated",
     "citation": {
@@ -1036,7 +1036,7 @@
     "symbolic_name": "InvalidUserNameOrPassword",
     "description": "Invalid username or password. User provided incorrect credentials.",
     "fix_category": "user",
-    "action": "prompt_reauth",
+    "action": "reset_credentials",
     "user_or_admin": "user",
     "source": "curated",
     "citation": {
@@ -1923,7 +1923,7 @@
     "symbolic_name": "DelegationDoesNotExist",
     "description": "User or administrator has not consented to use the application. Send an interactive authorization request for this user and resource.",
     "fix_category": "user",
-    "action": "trigger_consent_flow",
+    "action": "complete_consent_prompt",
     "user_or_admin": "user",
     "source": "curated",
     "citation": {
@@ -2735,7 +2735,7 @@
     "symbolic_name": "MsodsServiceUnavailable",
     "description": "A transient error has occurred. Please retry.",
     "fix_category": "retry",
-    "action": "retry",
+    "action": "retry_with_backoff",
     "user_or_admin": "user",
     "source": "curated",
     "citation": {
@@ -4028,7 +4028,7 @@
     "symbolic_name": "UnauthorizedClientAppNotFoundInOrgIdTenant",
     "description": "Invalid client credentials. The application secret or certificate used for authentication is incorrect or expired.",
     "fix_category": "admin_auto",
-    "action": "rotate_app_secret",
+    "action": "rotate_client_secret",
     "user_or_admin": "admin",
     "source": "curated",
     "citation": {

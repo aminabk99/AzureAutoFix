@@ -207,9 +207,20 @@ def classify(error_input: str) -> dict:
     # ── Tier 2: retrieval over the full AADSTS catalog ───────────────────
     try:
         from model.retrieval import get_retriever
-        hit = get_retriever().classify(error_input)
+        hit, reason = get_retriever().resolve(error_input)
         if hit is not None:
             return hit
+        if reason == "out_of_domain":
+            # Retrieval just determined this isn't an Azure AD error. Asking
+            # the model anyway would be actively harmful: it was trained only
+            # on Azure error text, has no out-of-domain class, and will emit
+            # some category regardless -- occasionally above the confidence
+            # floor. Stop here.
+            return _abstain(
+                error_code,
+                "The input does not resemble an Azure AD error, so no "
+                "remediation was inferred.",
+            )
     except FileNotFoundError:
         # Catalog not built yet -- fall through to the model.
         pass

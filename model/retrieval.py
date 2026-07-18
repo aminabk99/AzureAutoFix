@@ -208,6 +208,35 @@ class Retriever:
     _MIN_CHAR = 0.15
     _MIN_KNOWN_RATIO = 0.5
 
+    def resolve(self, query: str, top_k: int = 5) -> tuple[dict | None, str]:
+        """
+        Like classify(), but also reports *why* it failed:
+
+          "hit"           -- resolved
+          "out_of_domain" -- the query isn't an Azure AD error at all
+          "no_match"      -- plausibly in-domain, but nothing ranked
+
+        The caller needs this distinction. On "out_of_domain" there is no point
+        consulting the transformer: it was trained on Azure error text and has
+        no notion of an off-topic input, so it will confidently emit some class
+        for "banana bread recipe". On "no_match" the model is worth asking.
+        """
+        result = self.classify(query, top_k=top_k)
+        if result is not None:
+            return result, "hit"
+        return None, "out_of_domain" if not self._in_domain(query) else "no_match"
+
+    def _in_domain(self, query: str) -> bool:
+        bm = self.bm25.search(query)
+        ch = self.char.search(query)
+        toks = _tokens(query)
+        if not toks:
+            return False
+        known = sum(1 for t in toks if t in self.bm25.idf) / len(toks)
+        return ((max(bm.values(), default=0.0) >= self._MIN_BM25
+                 or max(ch.values(), default=0.0) >= self._MIN_CHAR)
+                and known >= self._MIN_KNOWN_RATIO)
+
     def classify(self, query: str, top_k: int = 5) -> dict | None:
         """
         Resolve a query to a remediation. Returns None when the query is

@@ -36,6 +36,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE = ROOT / "data" / "aadsts_reference.md"
 CURATED = ROOT / "data" / "azure_errors.json"
+ALIASES = ROOT / "data" / "action_aliases.json"
 OUT = ROOT / "data" / "aadsts_catalog.json"
 
 DOC_URL = ("https://learn.microsoft.com/en-us/entra/identity-platform/"
@@ -249,6 +250,13 @@ def parse(source: Path) -> list[dict]:
     return list(entries.values())
 
 
+def _alias_map() -> dict[str, str]:
+    """Synonym -> canonical remediation name. See data/action_aliases.json."""
+    if not ALIASES.exists():
+        return {}
+    return json.loads(ALIASES.read_text(encoding="utf-8")).get("aliases", {})
+
+
 def merge_curated(catalog: list[dict]) -> list[dict]:
     """Hand-written entries override the auto-labelled ones."""
     if not CURATED.exists():
@@ -275,6 +283,15 @@ def merge_curated(catalog: list[dict]) -> list[dict]:
         })
         merged.setdefault("symbolic_name", "")
         by_code[code] = merged
+
+    # Collapse synonym action names onto one canonical vocabulary. Without
+    # this the curated entries carry labels that exist nowhere else in the
+    # catalog, so a classifier trained on the rule-labelled rows physically
+    # cannot predict them.
+    aliases = _alias_map()
+    if aliases:
+        for entry in by_code.values():
+            entry["action"] = aliases.get(entry.get("action"), entry.get("action"))
 
     return sorted(by_code.values(), key=lambda d: int(d["error_code"][6:]))
 
