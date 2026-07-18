@@ -5,7 +5,9 @@ Reads monitoring/traces.jsonl and computes:
   - Per-endpoint p50 / p95 / p99 latency
   - Overall request volume and error rate
   - Error code frequency distribution
-  - Classification confidence histogram (from /analyze responses stored separately)
+  - Classification source split (lookup vs retrieval vs model) and the
+    latency of each path
+  - Trace writer health (queue depth, dropped records)
 
 Pure Python — no numpy or pandas required.
 """
@@ -28,6 +30,15 @@ def _percentile(data: list[float], p: int) -> float:
     return round(sorted_data[lo] + (sorted_data[hi] - sorted_data[lo]) * (k - lo), 2)
 
 
+def _writer_stats() -> dict:
+    """Writer health. Imported lazily so metrics stays usable standalone."""
+    try:
+        from monitoring.writer import stats
+        return stats()
+    except Exception:
+        return {}
+
+
 def compute_metrics(last_n: int = 1000) -> dict:
     """
     Returns a metrics dict from the last N trace records.
@@ -36,15 +47,13 @@ def compute_metrics(last_n: int = 1000) -> dict:
     {
         "request_count": int,
         "error_rate": float,           # fraction of 5xx responses
-        "latency_ms": {
-            "p50": float, "p95": float, "p99": float, "mean": float
-        },
-        "per_endpoint": {
-            "/analyze": {"p50": ..., "p95": ..., "p99": ..., "count": int},
-            ...
-        },
+        "latency_ms": {"p50","p95","p99","mean"},
+        "per_endpoint": {"/analyze": {"p50","p95","p99","mean","count"}, ...},
         "error_code_frequency": {"AADSTS50126": 5, ...},
-        "top_error_codes": [["AADSTS50126", 5], ...]   # top 10 sorted
+        "top_error_codes": [["AADSTS50126", 5], ...],
+        "classification_source": {"lookup": 40, "retrieval": 8, "model": 2},
+        "latency_by_source": {"lookup": {"p50","p95","count"}, ...},
+        "trace_writer": {"emitted","written","dropped","queue_depth"}
     }
     """
     if not _TRACES_FILE.exists():
@@ -88,6 +97,27 @@ def compute_metrics(last_n: int = 1000) -> dict:
     code_freq   = dict(Counter(error_codes).most_common())
     top_codes   = Counter(error_codes).most_common(10)
 
+    # Classification path split -- explains the latency distribution above.
+    # A lookup hit is O(1); retrieval and model hits are not.
+    source_split = dict(Counter(
+        r["source"] for r in records if r.get("source")
+    ).most_common())
+
+    # Latency broken out by source, so "the lookup path is fast" is a measured
+    # claim rather than an assertion.
+    by_source: dict[str, list[float]] = defaultdict(list)
+    for r in records:
+        if r.get("source") and "latency_ms" in r:
+            by_source[r["source"]].append(r["latency_ms"])
+    latency_by_source = {
+        src: {
+            "p50":   _percentile(v, 50),
+            "p95":   _percentile(v, 95),
+            "count": len(v),
+        }
+        for src, v in by_source.items()
+    }
+
     return {
         "request_count": len(records),
         "error_rate":    round(len(error_5xx) / len(records), 4) if records else 0.0,
@@ -100,6 +130,11 @@ def compute_metrics(last_n: int = 1000) -> dict:
         "per_endpoint":          per_endpoint,
         "error_code_frequency":  code_freq,
         "top_error_codes":       top_codes,
+        "classification_source": source_split,
+        "latency_by_source":     latency_by_source,
+        # If `dropped` is non-zero the percentiles above are computed from a
+        # sampled subset, and you should know that.
+        "trace_writer":          _writer_stats(),
     }
 
 
@@ -111,4 +146,7 @@ def _empty_metrics() -> dict:
         "per_endpoint": {},
         "error_code_frequency": {},
         "top_error_codes": [],
+        "classification_source": {},
+        "latency_by_source": {},
+        "trace_writer": _writer_stats(),
     }

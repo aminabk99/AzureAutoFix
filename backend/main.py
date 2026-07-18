@@ -3,12 +3,13 @@ AzureAutoFix — FastAPI Backend
 Run: uvicorn backend.main:app --reload --port 8000
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from typing import Optional
 import sys, os
+from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -18,6 +19,7 @@ from backend.escalation import generate_escalation_message
 from backend.auth import get_app_token
 from monitoring.metrics import compute_metrics
 from monitoring.middleware import LatencyTracingMiddleware
+from monitoring import writer as trace_writer
 
 # -- Production safety switches ----------------------------------------------
 # DEMO_API_KEY: if set, /fix requires a matching `X-API-Key` header.
@@ -63,6 +65,28 @@ async def startup_event():
     except Exception as e:
         print(f"[Startup] WARNING: Could not load model ({type(e).__name__}: {e}). Run model/train_local.py to train.")
 
+    # Warm the retrieval index. Building it costs ~150ms for 350 documents --
+    # small, but it would otherwise land on whichever unlucky user sends the
+    # first non-curated error after a cold start, which on a free-tier
+    # container is a real user fairly often.
+    try:
+        import time as _t
+        from model.retrieval import get_retriever
+        _t0 = _t.perf_counter()
+        n = len(get_retriever().catalog)
+        print(f"[Startup] Retrieval index warm: {n} AADSTS codes "
+              f"in {(_t.perf_counter()-_t0)*1000:.0f}ms.")
+    except FileNotFoundError:
+        print("[Startup] WARNING: catalog missing. Run: python model/build_catalog.py")
+    except Exception as e:
+        print(f"[Startup] WARNING: retrieval unavailable ({type(e).__name__}: {e}).")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Flush any buffered trace records before the process exits."""
+    trace_writer.shutdown()
+
 
 # -- Request/Response Models --------------------------------------------------
 
@@ -82,6 +106,11 @@ class FixRequest(BaseModel):
     redirect_uri: Optional[str] = None
     new_scope: Optional[str] = None
 
+class Citation(BaseModel):
+    title: str
+    url: str
+    score: float = 0.0
+
 class AnalyzeResponse(BaseModel):
     error_code: str
     fix_category: str
@@ -92,7 +121,12 @@ class AnalyzeResponse(BaseModel):
     action_detail: str
     user_message: str
     confidence: float
-    source: str
+    source: str                       # lookup | retrieval | model | abstain
+    # True when the system declined to commit to a remediation. The UI shows
+    # this prominently -- an unactioned error is much cheaper than a wrong
+    # automated write against a live tenant.
+    abstained: bool = False
+    citations: list[Citation] = []
 
 class FixResponse(BaseModel):
     success: bool
@@ -115,7 +149,85 @@ def root():
 
 @app.get("/status")
 def status():
-    return {"status": "ok", "model": "loaded", "version": "1.0.0"}
+    """
+    Honest health. The old version hardcoded model="loaded" and reported it
+    even when the checkpoint had failed to load at startup, which made a
+    degraded deployment look healthy.
+    """
+    from model import inference
+    from model.retrieval import CATALOG_PATH
+
+    return {
+        "status": "ok",
+        "version": "2.1.0",
+        "tiers": {
+            "lookup":    bool(inference._error_lookup) or Path(ROOT_DATA).exists(),
+            "retrieval": CATALOG_PATH.exists(),
+            "model":     inference._model is not None,
+        },
+    }
+
+
+# -- Frontend + sign-in config -------------------------------------------------
+# The Streamlit app has been replaced by a single static page (frontend/index.html)
+# that signs the admin in with MSAL.js and calls this API directly.
+#
+# Why the change: the old UI never actually implemented Microsoft sign-in -- it
+# had a "paste your MS Graph access token" text box. Streamlit reruns its whole
+# script on every interaction and has no routing, which makes holding an OAuth
+# redirect round-trip painful; MSAL.js in a normal page does it in one call.
+
+_FRONTEND = Path(__file__).parent.parent / "frontend" / "index.html"
+ROOT_DATA = Path(__file__).parent.parent / "data" / "azure_errors.json"
+
+# Delegated Graph scopes the signed-in admin must consent to for /fix to work.
+# Overridable so a deployment can request less than the full set.
+AUTH_SCOPES = [
+    s.strip() for s in os.getenv(
+        "AZURE_AUTH_SCOPES",
+        "User.ReadWrite.All,Application.ReadWrite.All,Directory.ReadWrite.All",
+    ).split(",") if s.strip()
+]
+
+
+@app.get("/app", response_class=HTMLResponse)
+def frontend():
+    """Serve the demo UI."""
+    if not _FRONTEND.exists():
+        raise HTTPException(status_code=404, detail="frontend/index.html not found")
+    return FileResponse(_FRONTEND, media_type="text/html")
+
+
+@app.get("/auth/config")
+def auth_config():
+    """
+    Public, non-secret config the browser needs to start an MSAL sign-in.
+
+    Deliberately returns only the client (application) ID and tenant ID, both
+    of which are public identifiers that appear in the sign-in URL anyway. The
+    client *secret* is never sent here -- a single-page app has nowhere safe to
+    put one, which is exactly why the app registration must list this page as a
+    "Single-page application" redirect URI rather than a "Web" one.
+    """
+    client_id = os.getenv("AZURE_CLIENT_ID")
+    tenant_id = os.getenv("AZURE_TENANT_ID")
+
+    if not client_id or not tenant_id:
+        return {
+            "configured": False,
+            "reason": (
+                "AZURE_CLIENT_ID / AZURE_TENANT_ID are not set on this deployment, "
+                "so interactive sign-in is disabled. /analyze and /escalate still work."
+            ),
+        }
+
+    return {
+        "configured": True,
+        "client_id": client_id,
+        "tenant_id": tenant_id,
+        "scopes": AUTH_SCOPES,
+        "demo_api_key_required": bool(DEMO_API_KEY),
+    }
 
 
 @app.get("/privacy", response_class=HTMLResponse)
@@ -186,7 +298,7 @@ def privacy_policy():
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-def analyze(req: AnalyzeRequest):
+def analyze(req: AnalyzeRequest, request: Request):
     """
     Step 1: Classify the error and determine fix path.
     Returns structured analysis including fix_category and action.
@@ -194,6 +306,12 @@ def analyze(req: AnalyzeRequest):
     if not req.error_input.strip():
         raise HTTPException(status_code=400, detail="error_input cannot be empty")
     result = classify(req.error_input)
+
+    # Annotate for the tracing middleware rather than having it re-parse the
+    # request body -- see monitoring/middleware.py.
+    request.state.error_code = result.get("error_code")
+    request.state.source = result.get("source")
+    request.state.confidence = result.get("confidence")
     return result
 
 

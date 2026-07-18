@@ -1,5 +1,9 @@
 version: "3.9"
 
+# The Streamlit frontend container is gone. The UI is now a single static page
+# (frontend/index.html) served by the backend itself at /app, so there is only
+# one service, one port, and no second image to build.
+
 services:
   backend:
     build:
@@ -10,18 +14,12 @@ services:
     volumes:
       - ./model:/app/model
       - ./data:/app/data
+      - ./frontend:/app/frontend
     environment:
       - PYTHONUNBUFFERED=1
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "8501:8501"
-    depends_on:
-      - backend
-    environment:
-      - API_BASE=http://backend:8000
+      # Required for interactive Microsoft sign-in on the demo page.
+      # Public identifiers only -- no client secret is exposed to the browser.
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID:-}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID:-}
+      - DEMO_API_KEY=${DEMO_API_KEY:-}
     restart: unless-stopped

@@ -1,52 +1,84 @@
 """
 AzureAutoFix — Request lifecycle middleware.
 
-Wraps every FastAPI request, records per-endpoint wall-clock latency,
-error code (if present in request body), and HTTP status, then appends
-a trace record to monitoring/traces.jsonl.
+Records per-endpoint wall-clock latency, HTTP status, and (when the handler
+supplies one) the AADSTS error code, then hands the record to the background
+writer in monitoring/writer.py.
+
+Two things changed from the original implementation, both correctness issues
+rather than style:
+
+1. Trace records are no longer written to disk inline. The original held a
+   global threading.Lock and did a synchronous file append from inside an
+   async handler, so under concurrency every request serialised behind every
+   other request's disk write. Records are now enqueued (non-blocking) and
+   flushed by a background thread. See writer.py.
+
+2. The middleware no longer reads the request body. The original did:
+
+       response = await call_next(request)
+       body_bytes = await request.body()      # after the handler consumed it
+
+   Under Starlette's BaseHTTPMiddleware the receive stream has already been
+   drained by the endpoint at that point, so this either returned empty or
+   re-buffered the payload purely to re-parse JSON the handler had just
+   parsed. Reading it *before* call_next is worse -- it swallows the stream
+   and the endpoint receives an empty body unless the channel is replayed.
+
+   Instead the handler annotates `request.state.error_code`, and the
+   middleware reads that after the fact. No double parse, no stream games.
 """
 
 from __future__ import annotations
 
-import json
 import time
-import threading
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-_TRACES_FILE = Path(__file__).parent / "traces.jsonl"
-_lock = threading.Lock()
+from monitoring.writer import emit
 
-
-async def _read_body_safe(request: Request) -> bytes:
-    """Read request body without consuming it (re-sets body stream)."""
-    body = await request.body()
-    return body
+# Paths that shouldn't pollute latency percentiles with their own traffic.
+_EXCLUDED_PATHS = {"/metrics", "/status", "/favicon.ico"}
 
 
 class LatencyTracingMiddleware(BaseHTTPMiddleware):
     """
-    Records per-request latency and metadata to traces.jsonl.
+    Emits one trace record per request:
 
-    Each line:
     {
-        "ts": "2026-07-14T12:00:00Z",
+        "ts": "2026-07-18T12:00:00+00:00",
         "endpoint": "/analyze",
         "method": "POST",
         "status": 200,
-        "latency_ms": 142.3,
-        "error_code": "AADSTS50126"   # only if extractable from body
+        "latency_ms": 3.1,
+        "error_code": "AADSTS50126",   # if the handler set request.state
+        "source": "lookup",            # lookup | retrieval | model
+        "confidence": 1.0
     }
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if request.url.path in _EXCLUDED_PATHS:
+            return await call_next(request)
+
         t0 = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            # Still record the failure before letting it propagate.
+            emit({
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "endpoint": request.url.path,
+                "method": request.method,
+                "status": 500,
+                "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
+            })
+            raise
+
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         record: dict = {
@@ -57,23 +89,14 @@ class LatencyTracingMiddleware(BaseHTTPMiddleware):
             "latency_ms": latency_ms,
         }
 
-        # Best-effort: pull error_code from cached body state
-        try:
-            body_bytes = await request.body()
-            if body_bytes:
-                payload = json.loads(body_bytes)
-                if "error_code" in payload:
-                    record["error_code"] = payload["error_code"]
-                elif "error_input" in payload:
-                    import re
-                    m = re.search(r"AADSTS\d+", payload["error_input"].upper())
-                    if m:
-                        record["error_code"] = m.group(0)
-        except Exception:
-            pass
+        # Handler-supplied annotations (set in backend/main.py).
+        for field in ("error_code", "source", "confidence"):
+            value = getattr(request.state, field, None)
+            if value is not None:
+                record[field] = value
 
-        with _lock:
-            with _TRACES_FILE.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(record) + "\n")
+        emit(record)
 
+        # Handy for the demo: prove the latency claim in the response headers.
+        response.headers["X-Response-Time-ms"] = str(latency_ms)
         return response

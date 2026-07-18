@@ -9,3 +9,7 @@ venv/
 node_modules/
 *.crx
 .DS_Store
+
+# Runtime trace log (rotated, size-capped)
+monitoring/traces.jsonl
+monitoring/traces.jsonl.1

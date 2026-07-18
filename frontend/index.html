@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AzureAutoFix — Azure AD error resolution</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+<style>
+  :root{
+    --bg:#0b0d11; --panel:#13161d; --panel-2:#181c25; --line:#242a36;
+    --text:#e7ebf2; --muted:#8b95a7; --faint:#5c6577;
+    --accent:#3b82f6; --accent-dim:#1d4ed8;
+    --ok:#10b981; --warn:#f59e0b; --danger:#ef4444; --info:#8b5cf6;
+    --radius:10px; --mono:'SF Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f8fb; --panel:#fff; --panel-2:#f1f4f9; --line:#e2e8f0;
+           --text:#0f172a; --muted:#64748b; --faint:#94a3b8; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); min-height:100vh;
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:940px;margin:0 auto;padding:0 24px 80px}
+
+  /* ── header ─────────────────────────────────────────────── */
+  header{
+    display:flex;align-items:center;gap:16px;
+    padding:22px 0 20px;border-bottom:1px solid var(--line);margin-bottom:32px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;letter-spacing:-.01em}
+  .bolt{
+    width:28px;height:28px;border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--info));font-size:15px;
+  }
+  .brand small{display:block;font-weight:400;font-size:12px;color:var(--muted);letter-spacing:0}
+  .spacer{flex:1}
+  .who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .avatar{
+    width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+    background:var(--accent);color:#fff;font-size:12px;font-weight:600;
+  }
+
+  /* ── buttons ────────────────────────────────────────────── */
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent;transition:.15s}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .btn{
+    background:var(--accent);color:#fff;border:none;padding:10px 18px;font-weight:550;font-size:14px;
+  }
+  .btn:hover:not(:disabled){background:var(--accent-dim)}
+  .btn-ghost{
+    background:transparent;color:var(--text);border:1px solid var(--line);padding:8px 14px;font-size:13px;
+  }
+  .btn-ghost:hover:not(:disabled){border-color:var(--muted)}
+  .btn-ms{
+    display:inline-flex;align-items:center;gap:9px;background:#fff;color:#3b3a39;
+    border:1px solid #d2d0ce;padding:9px 15px;font-size:13.5px;font-weight:600;
+  }
+  .btn-ms:hover:not(:disabled){background:#f3f2f1}
+  .ms-logo{width:16px;height:16px;flex:none}
+
+  /* ── panels ─────────────────────────────────────────────── */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+  .panel + .panel{margin-top:18px}
+  h2{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .sub{margin:0 0 16px;font-size:13px;color:var(--muted)}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px;
+        text-transform:uppercase;letter-spacing:.04em}
+  textarea,input[type=text]{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);padding:11px 13px;font:14px/1.5 var(--mono);resize:vertical;
+  }
+  textarea:focus,input:focus{outline:none;border-color:var(--accent)}
+  textarea::placeholder{color:var(--faint)}
+  .row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .hint{font-size:12.5px;color:var(--faint)}
+
+  .samples{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+  .chip{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+    padding:5px 11px;border-radius:99px;font:12px var(--mono);
+  }
+  .chip:hover{border-color:var(--accent);color:var(--text)}
+
+  /* ── result ─────────────────────────────────────────────── */
+  #result{display:none}
+  #result.show{display:block;animation:rise .25s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .rhead{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+  .code{font:600 20px/1.2 var(--mono);letter-spacing:-.02em}
+  .badges{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
+  .badge{
+    font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;
+    border:1px solid;letter-spacing:.02em;
+  }
+  .b-auto{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);
+          background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .b-user{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent);
+          background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .b-esc{color:var(--info);border-color:color-mix(in srgb,var(--info) 40%,transparent);
+         background:color-mix(in srgb,var(--info) 12%,transparent)}
+  .b-src{color:var(--muted);border-color:var(--line);background:var(--panel-2)}
+
+  .explain{margin:14px 0 0;font-size:14.5px}
+  .reason{
+    margin-top:14px;padding:13px 15px;background:var(--panel-2);
+    border-left:2px solid var(--accent);border-radius:0 8px 8px 0;
+    font-size:13.5px;color:var(--muted);
+  }
+  .meter{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:14px}
+  .meter i{display:block;height:100%;background:var(--accent);transition:width .5s}
+
+  .steps{margin:16px 0 0;padding-left:20px;font-size:14px}
+  .steps li{margin:7px 0}
+
+  .cite{
+    margin-top:14px;padding-top:14px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--muted);
+  }
+  .cite a{color:var(--accent);text-decoration:none}
+  .cite a:hover{text-decoration:underline}
+
+  /* ── fix panel ──────────────────────────────────────────── */
+  .fixbox{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+
+  .note{
+    padding:11px 14px;border-radius:8px;font-size:13px;margin-top:12px;
+    border:1px solid;
+  }
+  .n-warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent);
+          background:color-mix(in srgb,var(--warn) 10%,transparent)}
+  .n-ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent);
+        background:color-mix(in srgb,var(--ok) 10%,transparent)}
+  .n-err{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 35%,transparent);
+         background:color-mix(in srgb,var(--danger) 10%,transparent)}
+  .n-err code{font:12px var(--mono);display:block;margin-top:6px;opacity:.85;word-break:break-all}
+
+  /* ── footer stats ───────────────────────────────────────── */
+  .stats{display:flex;gap:22px;flex-wrap:wrap;margin-top:26px;padding-top:18px;
+         border-top:1px solid var(--line);font-size:12.5px;color:var(--faint)}
+  .stat b{display:block;color:var(--text);font:600 16px/1.3 var(--mono)}
+
+  .spin{
+    display:inline-block;width:13px;height:13px;border:2px solid currentColor;
+    border-right-color:transparent;border-radius:50%;animation:sp .6s linear infinite;
+    vertical-align:-2px;margin-right:7px;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .mono{font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <span class="bolt">⚡</span>
+      <span>AzureAutoFix<small>Detect · explain · fix Azure AD errors</small></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="who" id="who">
+      <button class="btn-ms" id="signin">
+        <svg class="ms-logo" viewBox="0 0 23 23" aria-hidden="true">
+          <path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/>
+          <path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/>
+        </svg>
+        Sign in with Microsoft
+      </button>
+    </div>
+  </header>
+
+  <!-- ── input ─────────────────────────────────────────── -->
+  <div class="panel">
+    <h2>Paste an Azure AD error</h2>
+    <p class="sub">An AADSTS code, or just describe what happened in plain English.</p>
+    <textarea id="input" rows="3"
+      placeholder="AADSTS900971: No reply address provided.&#10;&#10;…or: &quot;user can't sign in, says admin approval needed&quot;"></textarea>
+
+    <div class="samples" id="samples"></div>
+
+    <div class="row">
+      <button class="btn" id="analyze">Analyze</button>
+      <span class="hint" id="hint">Read-only. Nothing is changed in your tenant.</span>
+    </div>
+  </div>
+
+  <!-- ── result ────────────────────────────────────────── -->
+  <div class="panel" id="result">
+    <div class="rhead">
+      <div>
+        <div class="code" id="r-code">—</div>
+        <div class="hint mono" id="r-cat"></div>
+      </div>
+      <div class="badges" id="r-badges"></div>
+    </div>
+
+    <p class="explain" id="r-explain"></p>
+    <div class="reason" id="r-reason"></div>
+    <div class="meter" title="model confidence"><i id="r-meter" style="width:0"></i></div>
+    <div class="hint" id="r-conf" style="margin-top:6px"></div>
+
+    <ol class="steps" id="r-steps"></ol>
+    <div class="cite" id="r-cite" style="display:none"></div>
+
+    <!-- auto-fix -->
+    <div class="fixbox" id="fixbox" style="display:none">
+      <h2>Apply the fix</h2>
+      <p class="sub">Runs against your tenant through the Microsoft Graph API.</p>
+      <div class="grid2">
+        <div><label for="f-user">User object ID</label><input type="text" id="f-user" placeholder="00000000-0000-…" /></div>
+        <div><label for="f-app">App object ID</label><input type="text" id="f-app" placeholder="00000000-0000-…" /></div>
+        <div><label for="f-uri">Redirect URI</label><input type="text" id="f-uri" placeholder="https://localhost/auth" /></div>
+        <div><label for="f-scope">New scope</label><input type="text" id="f-scope" placeholder="User.Read" /></div>
+      </div>
+      <div class="row"><button class="btn" id="dofix">Fix it now</button></div>
+      <div id="fixnote"></div>
+    </div>
+
+    <!-- escalation -->
+    <div class="fixbox" id="escbox" style="display:none">
+      <h2>Escalate to your admin</h2>
+      <p class="sub">Pre-written — copy and send.</p>
+      <div class="row"><button class="btn-ghost" id="doesc">Draft the message</button></div>
+      <div id="escout"></div>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+</div>
+
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   AzureAutoFix — demo frontend
+
+   Replaces the old Streamlit app. Two reasons that mattered:
+
+   1. Streamlit reruns the whole script on every interaction and has no
+      real routing, so an OAuth redirect round-trip is painful to hold
+      onto. The previous UI never actually implemented sign-in at all --
+      it had a "paste your Graph token here" password box, which is why
+      signing in appeared broken. There was nothing to break.
+
+   2. MSAL.js is designed for exactly this: loginPopup() hands back a
+      real delegated token scoped to the signed-in admin, so /fix acts
+      as *them*, not as stored app credentials.
+   ═══════════════════════════════════════════════════════════════ */
+
+const API = location.origin.includes("localhost") || location.origin.includes("127.0.0.1")
+  ? "http://localhost:8000" : location.origin;
+
+const $ = id => document.getElementById(id);
+let pca = null, account = null, cfg = null, last = null;
+
+/* ── boot ─────────────────────────────────────────────────── */
+(async function boot(){
+  renderSamples();
+  try{
+    cfg = await (await fetch(API + "/auth/config")).json();
+  }catch(e){
+    return signinUnavailable("Backend unreachable at " + API);
+  }
+
+  if(!cfg.configured){
+    return signinUnavailable(cfg.reason || "Sign-in is not configured on this deployment.");
+  }
+
+  pca = new msal.PublicClientApplication({
+    auth:{
+      clientId: cfg.client_id,
+      authority: "https://login.microsoftonline.com/" + cfg.tenant_id,
+      redirectUri: location.origin + location.pathname,
+    },
+    cache:{ cacheLocation:"sessionStorage", storeAuthStateInCookie:false },
+  });
+  if (typeof pca.initialize === 'function') await pca.initialize();
+
+  const existing = pca.getAllAccounts();
+  if(existing.length){ account = existing[0]; paintAccount(); }
+})();
+
+function signinUnavailable(reason){
+  $("who").innerHTML =
+    `<span class="hint" title="${esc(reason)}">Sign-in unavailable — analysis still works</span>`;
+}
+
+/* ── auth ─────────────────────────────────────────────────── */
+$("signin").onclick = async () => {
+  try{
+    const res = await pca.loginPopup({ scopes: cfg.scopes, prompt:"select_account" });
+    account = res.account;
+    paintAccount();
+  }catch(e){
+    // Surface the real AADSTS code instead of a generic failure -- this is
+    // an Azure AD error resolution tool, it should resolve its own.
+    note("fixnote", "n-err", "Sign-in failed", msalReason(e));
+  }
+};
+
+function paintAccount(){
+  const name = account.name || account.username || "Signed in";
+  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0,2)
+    .map(s=>s[0].toUpperCase()).join("");
+  $("who").innerHTML =
+    `<span class="avatar">${esc(initials)}</span>
+     <span>${esc(name)}</span>
+     <button class="btn-ghost" id="signout">Sign out</button>`;
+  $("signout").onclick = async () => {
+    await pca.logoutPopup({ account });
+    account = null; location.reload();
+  };
+}
+
+async function getToken(){
+  if(!account) return null;
+  try{
+    const r = await pca.acquireTokenSilent({ scopes: cfg.scopes, account });
+    return r.accessToken;
+  }catch{
+    const r = await pca.acquireTokenPopup({ scopes: cfg.scopes, account });
+    return r.accessToken;
+  }
+}
+
+/* Map MSAL/AAD failures to something actionable. */
+function msalReason(e){
+  const msg = (e && (e.errorMessage || e.message)) || String(e);
+  const code = (msg.match(/AADSTS\d+/) || [])[0];
+  const known = {
+    AADSTS50011: "The redirect URI isn't registered. In your app registration, add "
+               + location.origin + location.pathname + " under Authentication → "
+               + "Single-page application (not Web).",
+    AADSTS650053: "The requested Graph scope isn't consented for this app.",
+    AADSTS700016: "This app registration isn't in the signed-in user's tenant.",
+    AADSTS90002:  "Tenant not found — check AZURE_TENANT_ID.",
+    AADSTS7000215:"Invalid client secret — but a SPA shouldn't send one. Make sure the "
+               + "redirect URI is registered under 'Single-page application'.",
+  };
+  if(code && known[code]) return code + " — " + known[code];
+  if(/popup_window_error|BrowserAuthError/i.test(msg))
+    return "The sign-in popup was blocked. Allow popups for this site and retry.";
+  return msg;
+}
+
+/* ── analyze ──────────────────────────────────────────────── */
+const SAMPLES = ["AADSTS900971","AADSTS50053","AADSTS50126","AADSTS65001",
+                 "AADSTS700011","user needs admin approval to sign in"];
+
+function renderSamples(){
+  $("samples").innerHTML = SAMPLES
+    .map(s=>`<button class="chip">${esc(s)}</button>`).join("");
+  [...$("samples").children].forEach((b,i)=>
+    b.onclick = () => { $("input").value = SAMPLES[i]; doAnalyze(); });
+}
+
+$("analyze").onclick = doAnalyze;
+$("input").addEventListener("keydown", e => {
+  if((e.metaKey||e.ctrlKey) && e.key === "Enter") doAnalyze();
+});
+
+async function doAnalyze(){
+  const text = $("input").value.trim();
+  if(!text) return;
+
+  const btn = $("analyze");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Analyzing';
+  const t0 = performance.now();
+
+  try{
+    const res = await fetch(API + "/analyze", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ error_input: text }),
+    });
+    if(!res.ok) throw new Error(await res.text());
+    last = await res.json();
+    // Server-measured time, set by the tracing middleware.
+    last._ms = res.headers.get("X-Response-Time-ms") || (performance.now()-t0).toFixed(0);
+    paintResult(last);
+  }catch(e){
+    $("result").classList.add("show");
+    $("r-code").textContent = "Request failed";
+    $("r-explain").textContent = String(e.message || e);
+    $("r-reason").textContent = ""; $("r-steps").innerHTML = "";
+    $("r-badges").innerHTML = ""; $("fixbox").style.display = "none";
+    $("escbox").style.display = "none"; $("r-cite").style.display = "none";
+  }finally{
+    btn.disabled = false; btn.textContent = "Analyze";
+  }
+}
+
+const CAT = {
+  admin_auto:     ["b-auto","Auto-fixable"],
+  admin_escalate: ["b-esc","Escalate to admin"],
+  user:           ["b-user","You can fix this"],
+  retry:          ["b-user","Transient — retry"],
+};
+
+function paintResult(r){
+  $("result").classList.add("show");
+  $("r-code").textContent = r.error_code || "UNKNOWN";
+  $("r-cat").textContent  = (r.action || "") + (r.user_or_admin ? " · " + r.user_or_admin : "");
+
+  const [cls,lbl] = CAT[r.fix_category] || ["b-src", r.fix_category || "—"];
+  const srcLabel = { lookup:"exact match", retrieval:"retrieved", model:"model inference" }[r.source] || r.source;
+  $("r-badges").innerHTML =
+      `<span class="badge ${cls}">${esc(lbl)}</span>`
+    + `<span class="badge b-src">${esc(srcLabel)}</span>`
+    + `<span class="badge b-src">${esc(r._ms)} ms</span>`;
+
+  $("r-explain").textContent = r.explanation || "";
+  $("r-reason").textContent  = r.reasoning || "";
+
+  const pct = Math.round((r.confidence ?? 0) * 100);
+  $("r-meter").style.width = pct + "%";
+  $("r-meter").style.background = pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--danger)";
+  $("r-conf").textContent = `${pct}% confidence · ${srcLabel}`
+    + (r.source === "lookup" ? "" : " · verify before applying");
+
+  $("r-steps").innerHTML = (r.steps && r.steps.length)
+    ? r.steps.map(s=>`<li>${esc(s)}</li>`).join("")
+    : (r.action_detail ? `<li>${esc(r.action_detail)}</li>` : "");
+
+  // Citations (populated once the retrieval layer is wired in).
+  if(r.citations && r.citations.length){
+    $("r-cite").style.display = "block";
+    $("r-cite").innerHTML = "Source: " + r.citations
+      .map(c => c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title||c.url)}</a>`
+                      : esc(c.title||"")).join(" · ");
+  } else $("r-cite").style.display = "none";
+
+  $("fixbox").style.display = r.fix_category === "admin_auto" ? "block" : "none";
+  $("escbox").style.display = r.fix_category === "admin_escalate" ? "block" : "none";
+  $("fixnote").innerHTML = ""; $("escout").innerHTML = "";
+
+  if(r.fix_category === "admin_auto" && !account)
+    note("fixnote","n-warn","Sign-in required",
+         "Sign in with a Microsoft admin account to apply this fix.");
+
+  refreshStats();
+}
+
+/* ── fix ──────────────────────────────────────────────────── */
+$("dofix").onclick = async () => {
+  if(!account)
+    return note("fixnote","n-warn","Sign-in required",
+                "Sign in with a Microsoft admin account first.");
+
+  const btn = $("dofix");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Applying';
+  try{
+    const token = await getToken();
+    const res = await fetch(API + "/fix", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json",
+                ...(cfg.demo_api_key_required ? {"X-API-Key": prompt("Demo API key:") || ""} : {}) },
+      body: JSON.stringify({
+        error_code: last.error_code, fix_category: last.fix_category,
+        access_token: token,
+        user_id: $("f-user").value.trim() || null,
+        app_id: $("f-app").value.trim() || null,
+        redirect_uri: $("f-uri").value.trim() || null,
+        new_scope: $("f-scope").value.trim() || null,
+      }),
+    });
+    const body = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(body.detail || res.statusText);
+    note("fixnote","n-ok","Fixed", body.details || "Applied successfully.");
+  }catch(e){
+    note("fixnote","n-err","Fix failed", String(e.message || e));
+  }finally{
+    btn.disabled = false; btn.textContent = "Fix it now";
+  }
+};
+
+/* ── escalate ─────────────────────────────────────────────── */
+$("doesc").onclick = async () => {
+  try{
+    const res = await fetch(API + "/escalate", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ error_input: $("input").value.trim() }),
+    });
+    const m = await res.json();
+    $("escout").innerHTML =
+      `<div class="note n-ok" style="white-space:pre-wrap">
+         <b>Subject:</b> ${esc(m.subject)}\n\n${esc(m.body)}
+       </div>
+       <div class="row">
+         <button class="btn-ghost" id="copyesc">Copy email</button>
+       </div>`;
+    $("copyesc").onclick = () => {
+      navigator.clipboard.writeText(m.subject + "\n\n" + m.body);
+      $("copyesc").textContent = "Copied";
+    };
+  }catch(e){
+    note("escout","n-err","Couldn't draft the message", String(e.message || e));
+  }
+};
+
+/* ── stats strip ──────────────────────────────────────────── */
+async function refreshStats(){
+  try{
+    const m = await (await fetch(API + "/metrics?last_n=500")).json();
+    const src = m.classification_source || {};
+    $("stats").innerHTML = [
+      ["p50 latency", (m.latency_ms?.p50 ?? 0) + " ms"],
+      ["p95 latency", (m.latency_ms?.p95 ?? 0) + " ms"],
+      ["requests",    m.request_count ?? 0],
+      ["exact match", src.lookup ?? 0],
+      ["retrieved",   (src.retrieval ?? 0) + (src.model ?? 0)],
+    ].map(([k,v])=>`<div class="stat"><b>${esc(String(v))}</b>${esc(k)}</div>`).join("");
+  }catch{}
+}
+refreshStats();
+
+/* ── util ─────────────────────────────────────────────────── */
+function note(el, cls, title, body){
+  $(el).innerHTML = `<div class="note ${cls}"><b>${esc(title)}</b><br>${esc(body)}</div>`;
+}
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c =>
+    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+</script>
+</body>
+</html>

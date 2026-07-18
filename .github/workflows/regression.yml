@@ -1,4 +1,4 @@
-name: Classification Regression Gate
+name: Quality Gates
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  regression:
-    name: All 15 AADSTS codes → classify() must pass
+  gates:
+    name: Classification + retrieval gates
     runs-on: ubuntu-latest
 
     steps:
@@ -21,27 +21,41 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install dependencies
-        run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements.txt
+      # Tiers 1 (curated lookup) and 2 (retrieval) are pure stdlib, so the
+      # gates below run without torch. That keeps CI at ~20s instead of the
+      # several minutes a torch install costs, and it also proves the service
+      # degrades correctly when the model tier is unavailable.
+      - name: Install runtime deps (no torch)
+        run: pip install fastapi "uvicorn[standard]" httpx pydantic python-dotenv msal
 
-      - name: Train model (needed if .pt not in repo)
-        run: |
-          if [ ! -f model/azure_error_model.pt ]; then
-            echo "Model not found — training from scratch..."
-            python model/train_local.py
-          else
-            echo "Pre-trained model found — skipping training."
-          fi
+      - name: Rebuild AADSTS catalog from the Microsoft reference
+        run: python model/build_catalog.py
 
-      - name: Run regression gate
+      # Fails the build if the catalog drifts -- e.g. someone edits
+      # data/azure_errors.json without regenerating, or the vendored
+      # Microsoft reference changes shape and the parser silently yields less.
+      - name: Assert catalog integrity
+        run: |
+          python - <<'PY'
+          import json, sys
+          c = json.load(open("data/aadsts_catalog.json"))
+          curated = [d for d in c if d["source"] == "curated"]
+          print(f"catalog: {len(c)} codes, {len(curated)} curated")
+          assert len(c) >= 300,     f"catalog shrank to {len(c)} codes"
+          assert len(curated) == 15, f"expected 15 curated, got {len(curated)}"
+          assert all(d.get("citation", {}).get("url") for d in c), "missing citations"
+          PY
+
+      - name: Classification regression gate (all 15 curated codes)
         run: python -m monitoring.regression_gate
 
-      - name: Upload trace log (if exists)
+      - name: Retrieval coverage gate
+        run: python -m monitoring.eval_retrieval --k 3 --min-top1 0.85 --min-para 0.75 --min-action 0.80
+
+      - name: Upload trace log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: regression-traces
+          name: gate-traces
           path: monitoring/traces.jsonl
           if-no-files-found: ignore
