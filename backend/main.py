@@ -20,6 +20,7 @@ from backend.auth import get_app_token
 from monitoring.metrics import compute_metrics
 from monitoring.middleware import LatencyTracingMiddleware
 from monitoring import writer as trace_writer
+from backend import i18n
 
 # -- Production safety switches ----------------------------------------------
 # DEMO_API_KEY: if set, /fix requires a matching `X-API-Key` header.
@@ -96,6 +97,7 @@ class AnalyzeRequest(BaseModel):
     user_id: Optional[str] = None         # Azure AD user object ID (for admin fixes)
     app_id: Optional[str] = None          # App registration object ID (for app fixes)
     redirect_uri: Optional[str] = None    # URI to add for AADSTS900971
+    lang: Optional[str] = None            # "es" | "fr" | "en" (falls back to Accept-Language)
 
 class FixRequest(BaseModel):
     error_code: str
@@ -127,6 +129,12 @@ class AnalyzeResponse(BaseModel):
     # automated write against a live tenant.
     abstained: bool = False
     citations: list[Citation] = []
+    # Which language the authored text came back in.
+    lang: str = "en"
+    # False when `explanation` is untranslated source text quoted from
+    # Microsoft's documentation. The UI labels this rather than letting the
+    # user guess which half of the response they're reading.
+    explanation_translated: bool = True
 
 class FixResponse(BaseModel):
     success: bool
@@ -196,6 +204,24 @@ def frontend():
     if not _FRONTEND.exists():
         raise HTTPException(status_code=404, detail="frontend/index.html not found")
     return FileResponse(_FRONTEND, media_type="text/html")
+
+
+@app.get("/i18n/{lang}")
+def i18n_strings(lang: str):
+    """UI string bundle plus the list of available languages."""
+    resolved = i18n.resolve(lang)
+    return {
+        "lang": resolved,
+        "requested": lang,
+        "available": i18n.available(),
+        "strings": i18n.strings(resolved),
+    }
+
+
+@app.get("/languages")
+def languages():
+    """Supported languages, for clients that only need the picker list."""
+    return {"default": i18n.DEFAULT_LANG, "available": i18n.available()}
 
 
 @app.get("/auth/config")
@@ -298,7 +324,11 @@ def privacy_policy():
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-def analyze(req: AnalyzeRequest, request: Request):
+def analyze(
+    req: AnalyzeRequest,
+    request: Request,
+    accept_language: Optional[str] = Header(default=None, alias="Accept-Language"),
+):
     """
     Step 1: Classify the error and determine fix path.
     Returns structured analysis including fix_category and action.
@@ -307,11 +337,18 @@ def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=400, detail="error_input cannot be empty")
     result = classify(req.error_input)
 
+    # Localisation happens after classification, never before: the retrieval
+    # index and the curated lookup are English-keyed, so translating the query
+    # would break matching. We translate the answer, not the question.
+    lang = i18n.resolve(req.lang, accept_language)
+    result = i18n.localize(result, lang)
+
     # Annotate for the tracing middleware rather than having it re-parse the
     # request body -- see monitoring/middleware.py.
     request.state.error_code = result.get("error_code")
     request.state.source = result.get("source")
     request.state.confidence = result.get("confidence")
+    request.state.lang = lang
     return result
 
 
@@ -380,12 +417,18 @@ async def _dispatch_admin_fix(client: GraphAPIClient, req: FixRequest) -> str:
 
 
 @app.post("/escalate", response_model=EscalateResponse)
-def escalate(req: AnalyzeRequest):
+def escalate(
+    req: AnalyzeRequest,
+    accept_language: Optional[str] = Header(default=None, alias="Accept-Language"),
+):
     """
     For errors requiring admin action when the current user is NOT an admin.
     Returns a pre-written email + Teams message the user can send.
     """
-    result = classify(req.error_input)
+    result = i18n.localize(
+        classify(req.error_input),
+        i18n.resolve(req.lang, accept_language),
+    )
     msg = generate_escalation_message(
         error_code=result["error_code"],
         explanation=result["explanation"],

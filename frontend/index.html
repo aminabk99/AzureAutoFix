@@ -146,6 +146,18 @@
          border-top:1px solid var(--line);font-size:12.5px;color:var(--faint)}
   .stat b{display:block;color:var(--text);font:600 16px/1.3 var(--mono)}
 
+  .langsel{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:7px 10px;border-radius:8px;font:13px inherit;cursor:pointer;
+  }
+  .langsel:hover{border-color:var(--muted)}
+  .langsel:focus{outline:none;border-color:var(--accent)}
+
+  .untranslated{
+    margin-top:10px;padding:9px 12px;border-radius:8px;font-size:12.5px;
+    color:var(--muted);background:var(--panel-2);border:1px dashed var(--line);
+  }
+
   .spin{
     display:inline-block;width:13px;height:13px;border:2px solid currentColor;
     border-right-color:transparent;border-radius:50%;animation:sp .6s linear infinite;
@@ -164,6 +176,7 @@
       <span>AzureAutoFix<small>Detect · explain · fix Azure AD errors</small></span>
     </div>
     <div class="spacer"></div>
+    <select class="langsel" id="lang" aria-label="Language"></select>
     <div class="who" id="who">
       <button class="btn-ms" id="signin">
         <svg class="ms-logo" viewBox="0 0 23 23" aria-hidden="true">
@@ -177,8 +190,8 @@
 
   <!-- ── input ─────────────────────────────────────────── -->
   <div class="panel">
-    <h2>Paste an Azure AD error</h2>
-    <p class="sub">An AADSTS code, or just describe what happened in plain English.</p>
+    <h2 id="input-title">Paste an Azure AD error</h2>
+    <p class="sub" id="input-sub">An AADSTS code, or just describe what happened in plain English.</p>
     <textarea id="input" rows="3"
       placeholder="AADSTS900971: No reply address provided.&#10;&#10;…or: &quot;user can't sign in, says admin approval needed&quot;"></textarea>
 
@@ -206,17 +219,18 @@
     <div class="hint" id="r-conf" style="margin-top:6px"></div>
 
     <ol class="steps" id="r-steps"></ol>
+    <div class="untranslated" id="r-untranslated" style="display:none"></div>
     <div class="cite" id="r-cite" style="display:none"></div>
 
     <!-- auto-fix -->
     <div class="fixbox" id="fixbox" style="display:none">
-      <h2>Apply the fix</h2>
-      <p class="sub">Runs against your tenant through the Microsoft Graph API.</p>
+      <h2 id="fix-title">Apply the fix</h2>
+      <p class="sub" id="fix-sub">Runs against your tenant through the Microsoft Graph API.</p>
       <div class="grid2">
-        <div><label for="f-user">User object ID</label><input type="text" id="f-user" placeholder="00000000-0000-…" /></div>
-        <div><label for="f-app">App object ID</label><input type="text" id="f-app" placeholder="00000000-0000-…" /></div>
-        <div><label for="f-uri">Redirect URI</label><input type="text" id="f-uri" placeholder="https://localhost/auth" /></div>
-        <div><label for="f-scope">New scope</label><input type="text" id="f-scope" placeholder="User.Read" /></div>
+        <div><label for="f-user" id="lbl-user">User object ID</label><input type="text" id="f-user" placeholder="00000000-0000-…" /></div>
+        <div><label for="f-app" id="lbl-app">App object ID</label><input type="text" id="f-app" placeholder="00000000-0000-…" /></div>
+        <div><label for="f-uri" id="lbl-uri">Redirect URI</label><input type="text" id="f-uri" placeholder="https://localhost/auth" /></div>
+        <div><label for="f-scope" id="lbl-scope">New scope</label><input type="text" id="f-scope" placeholder="User.Read" /></div>
       </div>
       <div class="row"><button class="btn" id="dofix">Fix it now</button></div>
       <div id="fixnote"></div>
@@ -224,8 +238,8 @@
 
     <!-- escalation -->
     <div class="fixbox" id="escbox" style="display:none">
-      <h2>Escalate to your admin</h2>
-      <p class="sub">Pre-written — copy and send.</p>
+      <h2 id="esc-title">Escalate to your admin</h2>
+      <p class="sub" id="esc-sub">Pre-written — copy and send.</p>
       <div class="row"><button class="btn-ghost" id="doesc">Draft the message</button></div>
       <div id="escout"></div>
     </div>
@@ -258,8 +272,16 @@ const API = location.origin.includes("localhost") || location.origin.includes("1
 const $ = id => document.getElementById(id);
 let pca = null, account = null, cfg = null, last = null;
 
+/* i18n state. `T` is the active UI string bundle; every user-visible string
+   in this file is looked up through t() rather than hardcoded, so adding a
+   language is a JSON file in data/i18n/ and nothing else. */
+let LANG = localStorage.getItem("azureautofix.lang") || "";
+let T = {};
+const t = (k, fallback) => (T && T[k]) || fallback || k;
+
 /* ── boot ─────────────────────────────────────────────────── */
 (async function boot(){
+  await loadLanguage(LANG);      // populates T and the picker
   renderSamples();
   try{
     cfg = await (await fetch(API + "/auth/config")).json();
@@ -285,9 +307,81 @@ let pca = null, account = null, cfg = null, last = null;
   if(existing.length){ account = existing[0]; paintAccount(); }
 })();
 
+/* ── i18n ─────────────────────────────────────────────────────────────── */
+
+async function loadLanguage(code){
+  try{
+    // Empty code lets the backend negotiate from the browser's
+    // Accept-Language header, so a Spanish-locale visitor gets Spanish
+    // without touching the picker.
+    const res = await fetch(API + "/i18n/" + (code || "auto"));
+    const b = await res.json();
+    LANG = b.lang;
+    T = b.strings || {};
+    document.documentElement.lang = LANG;
+    renderLangPicker(b.available || []);
+    applyStaticStrings();
+  }catch(e){
+    // A missing bundle must not break the page -- fall back to the English
+    // already baked into the markup.
+    console.warn("i18n unavailable:", e);
+  }
+}
+
+function renderLangPicker(available){
+  const sel = $("lang");
+  if(!sel) return;
+  sel.innerHTML = available
+    .map(l => `<option value="${esc(l.code)}"${l.code === LANG ? " selected" : ""}>`
+            + `${esc(l.native_name)}</option>`).join("");
+  sel.onchange = async () => {
+    LANG = sel.value;
+    localStorage.setItem("azureautofix.lang", LANG);
+    await loadLanguage(LANG);
+    // Re-run the last analysis so the result switches language too, rather
+    // than leaving a stale response in the previous one.
+    if(last && $("input").value.trim()) doAnalyze();
+  };
+}
+
+/* Swap the static chrome. Kept as an explicit map so a missing key falls
+   back to whatever English is already in the DOM instead of blanking it. */
+function applyStaticStrings(){
+  const set = (id, key, attr) => {
+    const el = $(id); if(!el) return;
+    const v = T[key]; if(!v) return;
+    if(attr) el.setAttribute(attr, v); else el.textContent = v;
+  };
+  const sel = $("lang");
+  if(sel && T.language) sel.setAttribute("aria-label", T.language);
+  const tagline = document.querySelector(".brand small");
+  if(tagline && T.tagline) tagline.textContent = T.tagline;
+
+  set("input-title",  "input_title");
+  set("input-sub",    "input_sub");
+  set("input",        "input_placeholder", "placeholder");
+  set("analyze",      "analyze");
+  set("hint",         "readonly_hint");
+  set("fix-title",    "fix_title");
+  set("fix-sub",      "fix_sub");
+  set("lbl-user",     "field_user_id");
+  set("lbl-app",      "field_app_id");
+  set("lbl-uri",      "field_redirect_uri");
+  set("lbl-scope",    "field_scope");
+  set("dofix",        "fix_button");
+  set("esc-title",    "esc_title");
+  set("esc-sub",      "esc_sub");
+  set("doesc",        "esc_button");
+  const signin = $("signin");
+  if(signin && T.signin) signin.lastChild.textContent = " " + T.signin;
+  if(account) paintAccount();
+  if(last) paintResult(last);
+}
+
 function signinUnavailable(reason){
   $("who").innerHTML =
-    `<span class="hint" title="${esc(reason)}">Sign-in unavailable — analysis still works</span>`;
+    `<span class="hint" title="${esc(reason)}">${esc(t("signin_unavailable",
+       "Sign-in unavailable — analysis still works"))}</span>`;
 }
 
 /* ── auth ─────────────────────────────────────────────────── */
@@ -299,7 +393,7 @@ $("signin").onclick = async () => {
   }catch(e){
     // Surface the real AADSTS code instead of a generic failure -- this is
     // an Azure AD error resolution tool, it should resolve its own.
-    note("fixnote", "n-err", "Sign-in failed", msalReason(e));
+    note("fixnote", "n-err", t("signin_failed","Sign-in failed"), msalReason(e));
   }
 };
 
@@ -310,7 +404,7 @@ function paintAccount(){
   $("who").innerHTML =
     `<span class="avatar">${esc(initials)}</span>
      <span>${esc(name)}</span>
-     <button class="btn-ghost" id="signout">Sign out</button>`;
+     <button class="btn-ghost" id="signout">${esc(t("signout","Sign out"))}</button>`;
   $("signout").onclick = async () => {
     await pca.logoutPopup({ account });
     account = null; location.reload();
@@ -369,13 +463,13 @@ async function doAnalyze(){
   if(!text) return;
 
   const btn = $("analyze");
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Analyzing';
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>' + t("analyzing","Analyzing");
   const t0 = performance.now();
 
   try{
     const res = await fetch(API + "/analyze", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ error_input: text }),
+      body: JSON.stringify({ error_input: text, lang: LANG }),
     });
     if(!res.ok) throw new Error(await res.text());
     last = await res.json();
@@ -384,21 +478,21 @@ async function doAnalyze(){
     paintResult(last);
   }catch(e){
     $("result").classList.add("show");
-    $("r-code").textContent = "Request failed";
+    $("r-code").textContent = t("request_failed","Request failed");
     $("r-explain").textContent = String(e.message || e);
     $("r-reason").textContent = ""; $("r-steps").innerHTML = "";
     $("r-badges").innerHTML = ""; $("fixbox").style.display = "none";
     $("escbox").style.display = "none"; $("r-cite").style.display = "none";
   }finally{
-    btn.disabled = false; btn.textContent = "Analyze";
+    btn.disabled = false; btn.textContent = t("analyze","Analyze");
   }
 }
 
 const CAT = {
-  admin_auto:     ["b-auto","Auto-fixable"],
-  admin_escalate: ["b-esc","Escalate to admin"],
-  user:           ["b-user","You can fix this"],
-  retry:          ["b-user","Transient — retry"],
+  admin_auto:     ["b-auto", "cat_admin_auto",     "Auto-fixable"],
+  admin_escalate: ["b-esc",  "cat_admin_escalate", "Escalate to admin"],
+  user:           ["b-user", "cat_user",           "You can fix this"],
+  retry:          ["b-user", "cat_retry",          "Transient — retry"],
 };
 
 function paintResult(r){
@@ -406,8 +500,14 @@ function paintResult(r){
   $("r-code").textContent = r.error_code || "UNKNOWN";
   $("r-cat").textContent  = (r.action || "") + (r.user_or_admin ? " · " + r.user_or_admin : "");
 
-  const [cls,lbl] = CAT[r.fix_category] || ["b-src", r.fix_category || "—"];
-  const srcLabel = { lookup:"exact match", retrieval:"retrieved", model:"model inference" }[r.source] || r.source;
+  const [cls, catKey, catFallback] = CAT[r.fix_category] || ["b-src", null, r.fix_category || "—"];
+  const lbl = catKey ? t(catKey, catFallback) : catFallback;
+  const srcLabel = {
+    lookup:    t("source_lookup",    "exact match"),
+    retrieval: t("source_retrieval", "retrieved"),
+    model:     t("source_model",     "model inference"),
+    abstain:   t("source_abstain",   "not identified"),
+  }[r.source] || r.source;
   $("r-badges").innerHTML =
       `<span class="badge ${cls}">${esc(lbl)}</span>`
     + `<span class="badge b-src">${esc(srcLabel)}</span>`
@@ -419,17 +519,27 @@ function paintResult(r){
   const pct = Math.round((r.confidence ?? 0) * 100);
   $("r-meter").style.width = pct + "%";
   $("r-meter").style.background = pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--danger)";
-  $("r-conf").textContent = `${pct}% confidence · ${srcLabel}`
-    + (r.source === "lookup" ? "" : " · verify before applying");
+  $("r-conf").textContent = `${pct}% ${t("confidence","confidence")} · ${srcLabel}`
+    + (r.source === "lookup" ? "" : " · " + t("verify_before_applying","verify before applying"));
 
   $("r-steps").innerHTML = (r.steps && r.steps.length)
     ? r.steps.map(s=>`<li>${esc(s)}</li>`).join("")
     : (r.action_detail ? `<li>${esc(r.action_detail)}</li>` : "");
 
-  // Citations (populated once the retrieval layer is wired in).
+  // Be explicit when the explanation is Microsoft's source text rather than
+  // copy we authored and translated. Silently mixing languages without
+  // saying so is worse than showing English.
+  const un = $("r-untranslated");
+  if(LANG !== "en" && r.explanation_translated === false){
+    un.style.display = "block";
+    un.textContent = t("untranslated_notice",
+      "This description comes from Microsoft's documentation and is shown in English.");
+  } else un.style.display = "none";
+
+  // Citations.
   if(r.citations && r.citations.length){
     $("r-cite").style.display = "block";
-    $("r-cite").innerHTML = "Source: " + r.citations
+    $("r-cite").innerHTML = t("source_label","Source") + ": " + r.citations
       .map(c => c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title||c.url)}</a>`
                       : esc(c.title||"")).join(" · ");
   } else $("r-cite").style.display = "none";
@@ -439,8 +549,8 @@ function paintResult(r){
   $("fixnote").innerHTML = ""; $("escout").innerHTML = "";
 
   if(r.fix_category === "admin_auto" && !account)
-    note("fixnote","n-warn","Sign-in required",
-         "Sign in with a Microsoft admin account to apply this fix.");
+    note("fixnote","n-warn", t("signin_required","Sign-in required"),
+         t("signin_required_body","Sign in with a Microsoft admin account to apply this fix."));
 
   refreshStats();
 }
@@ -448,11 +558,11 @@ function paintResult(r){
 /* ── fix ──────────────────────────────────────────────────── */
 $("dofix").onclick = async () => {
   if(!account)
-    return note("fixnote","n-warn","Sign-in required",
-                "Sign in with a Microsoft admin account first.");
+    return note("fixnote","n-warn", t("signin_required","Sign-in required"),
+                t("signin_required_body","Sign in with a Microsoft admin account first."));
 
   const btn = $("dofix");
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Applying';
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>' + t("fixing","Applying");
   try{
     const token = await getToken();
     const res = await fetch(API + "/fix", {
@@ -470,11 +580,11 @@ $("dofix").onclick = async () => {
     });
     const body = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(body.detail || res.statusText);
-    note("fixnote","n-ok","Fixed", body.details || "Applied successfully.");
+    note("fixnote","n-ok", t("fix_ok","Fixed"), body.details || "Applied successfully.");
   }catch(e){
-    note("fixnote","n-err","Fix failed", String(e.message || e));
+    note("fixnote","n-err", t("fix_failed","Fix failed"), String(e.message || e));
   }finally{
-    btn.disabled = false; btn.textContent = "Fix it now";
+    btn.disabled = false; btn.textContent = t("fix_button","Fix it now");
   }
 };
 
@@ -483,22 +593,22 @@ $("doesc").onclick = async () => {
   try{
     const res = await fetch(API + "/escalate", {
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ error_input: $("input").value.trim() }),
+      body: JSON.stringify({ error_input: $("input").value.trim(), lang: LANG }),
     });
     const m = await res.json();
     $("escout").innerHTML =
       `<div class="note n-ok" style="white-space:pre-wrap">
-         <b>Subject:</b> ${esc(m.subject)}\n\n${esc(m.body)}
+         <b>${esc(t("subject","Subject"))}:</b> ${esc(m.subject)}\n\n${esc(m.body)}
        </div>
        <div class="row">
-         <button class="btn-ghost" id="copyesc">Copy email</button>
+         <button class="btn-ghost" id="copyesc">${esc(t("esc_copy","Copy email"))}</button>
        </div>`;
     $("copyesc").onclick = () => {
       navigator.clipboard.writeText(m.subject + "\n\n" + m.body);
-      $("copyesc").textContent = "Copied";
+      $("copyesc").textContent = t("esc_copied","Copied");
     };
   }catch(e){
-    note("escout","n-err","Couldn't draft the message", String(e.message || e));
+    note("escout","n-err", t("esc_failed","Couldn't draft the message"), String(e.message || e));
   }
 };
 
@@ -508,11 +618,11 @@ async function refreshStats(){
     const m = await (await fetch(API + "/metrics?last_n=500")).json();
     const src = m.classification_source || {};
     $("stats").innerHTML = [
-      ["p50 latency", (m.latency_ms?.p50 ?? 0) + " ms"],
-      ["p95 latency", (m.latency_ms?.p95 ?? 0) + " ms"],
-      ["requests",    m.request_count ?? 0],
-      ["exact match", src.lookup ?? 0],
-      ["retrieved",   (src.retrieval ?? 0) + (src.model ?? 0)],
+      [t("stat_p50","p50 latency"),      (m.latency_ms?.p50 ?? 0) + " ms"],
+      [t("stat_p95","p95 latency"),      (m.latency_ms?.p95 ?? 0) + " ms"],
+      [t("stat_requests","requests"),    m.request_count ?? 0],
+      [t("stat_exact","exact match"),    src.lookup ?? 0],
+      [t("stat_retrieved","retrieved"),  (src.retrieval ?? 0) + (src.model ?? 0)],
     ].map(([k,v])=>`<div class="stat"><b>${esc(String(v))}</b>${esc(k)}</div>`).join("");
   }catch{}
 }

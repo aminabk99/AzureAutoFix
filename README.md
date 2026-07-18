@@ -155,6 +155,51 @@ never sent to the frontend.
 
 ---
 
+## Languages
+
+The UI and all authored error text are available in **English, Spanish (Español)
+and French (Français)**. The picker sits in the page header and persists to
+`localStorage`; with no explicit choice the backend negotiates from the
+browser's `Accept-Language` header, so a Spanish-locale visitor gets Spanish
+without touching it.
+
+```bash
+curl -X POST localhost:8000/analyze -H 'Content-Type: application/json' \
+     -d '{"error_input":"AADSTS50053","lang":"es"}'
+# -> "La cuenta está bloqueada por demasiados intentos fallidos..."
+
+curl localhost:8000/languages     # picker list
+curl localhost:8000/i18n/fr       # UI string bundle
+```
+
+**What is and isn't translated.** We translate the text we wrote: the interface,
+the 30 remediation actions, the 15 curated error messages, and the abstain
+response. We do **not** machine-translate the ~335 auto-labelled descriptions
+parsed from Microsoft's documentation — that is quoted source material, and
+shipping unreviewed machine translations of technical auth guidance is how an
+admin ends up doing the wrong thing in a language nobody on the team can
+proofread.
+
+When a response contains untranslated source text the API sets
+`explanation_translated: false` and the UI labels it, rather than silently
+mixing languages and leaving the user to work out which half they're reading.
+Note that this keys off *authorship, not tier*: a retrieval hit that lands on
+one of the 15 curated codes is our own text, so it does get translated.
+
+Adding a language is one JSON file in `data/i18n/` and nothing else.
+`monitoring/check_i18n.py` fails the build if any locale drifts — missing keys,
+orphaned keys after a rename, empty values, untranslated copy-paste, frontend
+keys with no definition, or a catalog action with no translation. That last
+check caught six missing strings the first time it ran.
+
+| Language | Code | Strings |
+|----------|------|---------|
+| English | `en` | 97 |
+| Español | `es` | 97 |
+| Français | `fr` | 97 |
+
+---
+
 ## Performance
 
 The tracing middleware previously wrote each trace record to disk synchronously,
