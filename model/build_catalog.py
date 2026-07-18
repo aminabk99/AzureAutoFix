@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -309,14 +310,36 @@ def main() -> None:
         )
 
     catalog = merge_curated(parse(args.source))
-    args.out.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
+
+    # Write via a temp file in the same directory, then atomically replace.
+    # A direct write_text() to a cloud-synced folder (OneDrive/Dropbox) can be
+    # interrupted mid-flush by the sync client, leaving a truncated file that
+    # is still valid on disk but unparseable -- which happened, and shipped a
+    # broken catalog to git. os.replace is atomic, so readers see either the
+    # old file or the complete new one, never a partial write.
+    payload = json.dumps(catalog, indent=2)
+    tmp = args.out.with_suffix(args.out.suffix + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+
+    # Verify the bytes actually landed before swapping it in.
+    written = json.loads(tmp.read_text(encoding="utf-8"))
+    if len(written) != len(catalog):
+        raise SystemExit(
+            f"catalog write verification failed: expected {len(catalog)} "
+            f"entries, temp file has {len(written)}"
+        )
+    os.replace(tmp, args.out)
 
     from collections import Counter
     cats = Counter(d["fix_category"] for d in catalog)
     acts = Counter(d["action"] for d in catalog)
     curated_n = sum(1 for d in catalog if d["source"] == "curated")
 
-    print(f"Wrote {args.out.relative_to(ROOT)} — {len(catalog)} error codes "
+    try:
+        shown = args.out.relative_to(ROOT)
+    except ValueError:
+        shown = args.out
+    print(f"Wrote {shown} — {len(catalog)} error codes "
           f"({curated_n} curated, {len(catalog)-curated_n} auto-labelled)\n")
     print("fix_category:")
     for k, v in cats.most_common():
