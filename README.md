@@ -3,6 +3,7 @@
 Chrome extension that catches Microsoft Entra (Azure AD) errors the moment they appear and resolves them — automatically where possible, with guided steps or a drafted IT email where not.
 
 ---
+<img width="942" height="437" alt="image" src="https://github.com/user-attachments/assets/635b3501-3ead-4db2-9fa5-95e57a683e5b" />
 
 ## What it does
 
