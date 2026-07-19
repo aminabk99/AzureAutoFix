@@ -39,6 +39,9 @@ IDENTICAL_OK = {
     "ui.stat_p50", "ui.stat_p95",
     "ui.source_label",          # "Source" / "Fuente" / "Source" -- fr matches en
     "ui.field_redirect_uri",    # "Redirect URI" is the Azure portal's own label
+    "ui.nav_support",           # "GitHub" -- brand name
+    "ui.nav_settings",          # "README" -- technical term
+    "ui.nav_detection",         # "Extension" -- same word in EN/FR
 }
 
 
