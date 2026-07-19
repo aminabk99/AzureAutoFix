@@ -15,7 +15,6 @@ A Chrome extension + **FastAPI** backend that catches Microsoft Entra (**Azure A
 
 <img width="880" alt="AzureAutoFix web UI" src="https://github.com/user-attachments/assets/635b3501-3ead-4db2-9fa5-95e57a683e5b" />
 
-<img src="assets/demo.gif" alt="AzureAutoFix detects an AADSTS error and resolves it live via the MS Graph API" width="760" />
 
 </div>
 
