@@ -68,27 +68,28 @@
     <small class="text-[13px] font-semibold text-on-surface-variant/70">Cloud Wellness Engine</small>
   </div>
   <nav class="flex-1 space-y-1 px-4">
-    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">
       <span class="material-symbols-outlined">analytics</span><span id="nav-overview" class="font-bold">Overview</span></a>
-    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="https://github.com/aminabk99/AzureAutoFix/tree/main/extension" target="_blank" rel="noopener">
       <span class="material-symbols-outlined">radar</span><span id="nav-detection" class="font-bold">Live Detection</span></a>
-    <a class="flex items-center gap-4 py-3 px-4 bg-primary-fixed text-on-primary-fixed rounded-full font-bold shadow-sm" href="#">
+    <a class="flex items-center gap-4 py-3 px-4 bg-primary-fixed text-on-primary-fixed rounded-full font-bold shadow-sm" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">
       <span class="material-symbols-outlined fill">build_circle</span><span id="nav-remediation" class="font-bold">Remediation</span></a>
-    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="/docs" target="_blank" rel="noopener">
       <span class="material-symbols-outlined">menu_book</span><span id="nav-registry" class="font-bold">Registry</span></a>
-    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="/metrics" target="_blank" rel="noopener">
       <span class="material-symbols-outlined">article</span><span id="nav-logs" class="font-bold">Logs</span></a>
   </nav>
   <div class="mt-auto px-4 space-y-1">
     <a class="flex items-center gap-4 py-2.5 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all" href="https://github.com/aminabk99/AzureAutoFix" target="_blank" rel="noopener">
       <span class="material-symbols-outlined">help_outline</span><span id="nav-support" class="font-bold text-[13px]">Support</span></a>
-    <a class="flex items-center gap-4 py-2.5 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all" href="/docs" target="_blank">
+    <a class="flex items-center gap-4 py-2.5 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all" href="https://github.com/aminabk99/AzureAutoFix#readme" target="_blank" rel="noopener">
       <span class="material-symbols-outlined">settings</span><span id="nav-settings" class="font-bold text-[13px]">Settings</span></a>
     <div id="who" class="mt-4 p-4 glass-card rounded-xl">
       <button id="signin" class="w-full flex items-center justify-center gap-2 bg-white border border-outline-variant text-on-surface font-semibold text-sm py-2.5 rounded-full hover:bg-surface-container transition-colors">
         <svg width="16" height="16" viewBox="0 0 23 23" aria-hidden="true"><path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/><path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/></svg>
         <span> Sign in with Microsoft</span>
       </button>
+      <p id="signin-msg" class="text-xs text-center mt-2 leading-snug" style="display:none;color:#ba1a1a"></p>
     </div>
   </div>
 </aside>
@@ -237,15 +238,28 @@ const t = (k, fallback) => (T && T[k]) || fallback || k;
   try{ cfg = await (await fetch(API + "/auth/config")).json(); }
   catch(e){ return signinUnavailable("Backend unreachable at " + API); }
   if(!cfg.configured){ return signinUnavailable(cfg.reason || "Sign-in is not configured on this deployment."); }
-  pca = new msal.PublicClientApplication({
-    auth:{ clientId: cfg.client_id, authority: "https://login.microsoftonline.com/" + cfg.tenant_id,
-      redirectUri: location.origin + location.pathname },
-    cache:{ cacheLocation:"sessionStorage", storeAuthStateInCookie:false },
-  });
-  if (typeof pca.initialize === "function") await pca.initialize();
-  const existing = pca.getAllAccounts();
-  if(existing.length){ account = existing[0]; paintAccount(); }
+  if(typeof msal === "undefined"){
+    return signinMsg("The Microsoft sign-in library didn't load. Check your connection and reload.");
+  }
+  try{
+    pca = new msal.PublicClientApplication({
+      auth:{ clientId: cfg.client_id, authority: "https://login.microsoftonline.com/" + cfg.tenant_id,
+        redirectUri: location.origin + location.pathname },
+      cache:{ cacheLocation:"sessionStorage", storeAuthStateInCookie:false },
+    });
+    if (typeof pca.initialize === "function") await pca.initialize();
+    const existing = pca.getAllAccounts();
+    if(existing.length){ account = existing[0]; paintAccount(); }
+  }catch(err){
+    pca = null;
+    signinMsg("Sign-in couldn't start: " + ((err && err.message) || err));
+  }
 })();
+
+function signinMsg(text){
+  const m = document.getElementById("signin-msg");
+  if(m){ m.style.display = text ? "block" : "none"; m.textContent = text || ""; }
+}
 
 async function loadLanguage(code){
   try{
@@ -298,12 +312,17 @@ function signinUnavailable(reason){
 }
 
 document.addEventListener("click", async (e) => {
-  if(e.target.closest && e.target.closest("#signin") && pca){
-    try{
-      const res = await pca.loginPopup({ scopes: cfg.scopes, prompt:"select_account" });
-      account = res.account; paintAccount();
-    }catch(err){ note("fixnote","n-err", t("signin_failed","Sign-in failed"), msalReason(err)); }
+  if(!(e.target.closest && e.target.closest("#signin"))) return;
+  if(!pca){
+    return signinMsg(cfg && !cfg.configured
+      ? "Sign-in isn't configured on this server. Set AZURE_CLIENT_ID and AZURE_TENANT_ID in .env, then restart."
+      : "Sign-in isn't ready yet. Reload the page and try again.");
   }
+  signinMsg("");
+  try{
+    const res = await pca.loginPopup({ scopes: cfg.scopes, prompt:"select_account" });
+    account = res.account; paintAccount();
+  }catch(err){ signinMsg(msalReason(err)); }
 });
 
 function paintAccount(){
