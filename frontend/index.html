@@ -1,641 +1,497 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AzureAutoFix — Azure AD error resolution</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Be+Vietnam+Pro:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: { extend: {
+      colors: {
+        "primary": "#005faa", "on-primary": "#ffffff",
+        "primary-container": "#0078d4", "on-primary-container": "#ffffff",
+        "primary-fixed": "#d3e3ff", "primary-fixed-dim": "#a3c9ff",
+        "on-primary-fixed": "#001c39", "on-primary-fixed-variant": "#004883",
+        "secondary": "#845400", "secondary-fixed": "#ffddb6", "on-secondary-fixed": "#2a1800",
+        "secondary-container": "#feb246", "on-secondary-container": "#6f4600",
+        "tertiary": "#006395",
+        "error": "#ba1a1a", "error-container": "#ffdad6", "on-error-container": "#93000a",
+        "surface": "#f4fafd", "surface-dim": "#d4dbdd", "surface-bright": "#f4fafd",
+        "surface-container-lowest": "#ffffff", "surface-container-low": "#eef5f7",
+        "surface-container": "#e8eff1", "surface-container-high": "#e2e9ec",
+        "surface-container-highest": "#dde4e6",
+        "on-surface": "#161d1f", "on-surface-variant": "#404752",
+        "inverse-surface": "#2b3234", "inverse-on-surface": "#ebf2f4",
+        "outline": "#717783", "outline-variant": "#c0c7d4",
+        "background": "#f4fafd",
+        "ok": "#2e7d32", "ok-container": "#c8e6c9",
+      },
+      borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+      fontFamily: { head: ["Plus Jakarta Sans","sans-serif"], body: ["Be Vietnam Pro","sans-serif"] },
+    }},
+  };
+</script>
 <style>
-  :root{
-    --bg:#0b0d11; --panel:#13161d; --panel-2:#181c25; --line:#242a36;
-    --text:#e7ebf2; --muted:#8b95a7; --faint:#5c6577;
-    --accent:#3b82f6; --accent-dim:#1d4ed8;
-    --ok:#10b981; --warn:#f59e0b; --danger:#ef4444; --info:#8b5cf6;
-    --radius:10px; --mono:'SF Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
-  }
-  @media (prefers-color-scheme: light){
-    :root{ --bg:#f6f8fb; --panel:#fff; --panel-2:#f1f4f9; --line:#e2e8f0;
-           --text:#0f172a; --muted:#64748b; --faint:#94a3b8; }
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    background:var(--bg); color:var(--text); min-height:100vh;
-    font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:940px;margin:0 auto;padding:0 24px 80px}
-
-  /* ── header ─────────────────────────────────────────────── */
-  header{
-    display:flex;align-items:center;gap:16px;
-    padding:22px 0 20px;border-bottom:1px solid var(--line);margin-bottom:32px;
-  }
-  .brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;letter-spacing:-.01em}
-  .bolt{
-    width:28px;height:28px;border-radius:7px;display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--accent),var(--info));font-size:15px;
-  }
-  .brand small{display:block;font-weight:400;font-size:12px;color:var(--muted);letter-spacing:0}
-  .spacer{flex:1}
-  .who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
-  .avatar{
-    width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
-    background:var(--accent);color:#fff;font-size:12px;font-weight:600;
-  }
-
-  /* ── buttons ────────────────────────────────────────────── */
-  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent;transition:.15s}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .btn{
-    background:var(--accent);color:#fff;border:none;padding:10px 18px;font-weight:550;font-size:14px;
-  }
-  .btn:hover:not(:disabled){background:var(--accent-dim)}
-  .btn-ghost{
-    background:transparent;color:var(--text);border:1px solid var(--line);padding:8px 14px;font-size:13px;
-  }
-  .btn-ghost:hover:not(:disabled){border-color:var(--muted)}
-  .btn-ms{
-    display:inline-flex;align-items:center;gap:9px;background:#fff;color:#3b3a39;
-    border:1px solid #d2d0ce;padding:9px 15px;font-size:13.5px;font-weight:600;
-  }
-  .btn-ms:hover:not(:disabled){background:#f3f2f1}
-  .ms-logo{width:16px;height:16px;flex:none}
-
-  /* ── panels ─────────────────────────────────────────────── */
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
-  .panel + .panel{margin-top:18px}
-  h2{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:-.01em}
-  .sub{margin:0 0 16px;font-size:13px;color:var(--muted)}
-  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px;
-        text-transform:uppercase;letter-spacing:.04em}
-  textarea,input[type=text]{
-    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-    color:var(--text);padding:11px 13px;font:14px/1.5 var(--mono);resize:vertical;
-  }
-  textarea:focus,input:focus{outline:none;border-color:var(--accent)}
-  textarea::placeholder{color:var(--faint)}
-  .row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
-  .hint{font-size:12.5px;color:var(--faint)}
-
-  .samples{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
-  .chip{
-    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
-    padding:5px 11px;border-radius:99px;font:12px var(--mono);
-  }
-  .chip:hover{border-color:var(--accent);color:var(--text)}
-
-  /* ── result ─────────────────────────────────────────────── */
-  #result{display:none}
-  #result.show{display:block;animation:rise .25s ease}
-  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-  .rhead{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
-  .code{font:600 20px/1.2 var(--mono);letter-spacing:-.02em}
-  .badges{display:flex;gap:7px;flex-wrap:wrap;margin-left:auto}
-  .badge{
-    font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;
-    border:1px solid;letter-spacing:.02em;
-  }
-  .b-auto{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);
-          background:color-mix(in srgb,var(--ok) 12%,transparent)}
-  .b-user{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent);
-          background:color-mix(in srgb,var(--warn) 12%,transparent)}
-  .b-esc{color:var(--info);border-color:color-mix(in srgb,var(--info) 40%,transparent);
-         background:color-mix(in srgb,var(--info) 12%,transparent)}
-  .b-src{color:var(--muted);border-color:var(--line);background:var(--panel-2)}
-
-  .explain{margin:14px 0 0;font-size:14.5px}
-  .reason{
-    margin-top:14px;padding:13px 15px;background:var(--panel-2);
-    border-left:2px solid var(--accent);border-radius:0 8px 8px 0;
-    font-size:13.5px;color:var(--muted);
-  }
-  .meter{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:14px}
-  .meter i{display:block;height:100%;background:var(--accent);transition:width .5s}
-
-  .steps{margin:16px 0 0;padding-left:20px;font-size:14px}
-  .steps li{margin:7px 0}
-
-  .cite{
-    margin-top:14px;padding-top:14px;border-top:1px solid var(--line);
-    font-size:12.5px;color:var(--muted);
-  }
-  .cite a{color:var(--accent);text-decoration:none}
-  .cite a:hover{text-decoration:underline}
-
-  /* ── fix panel ──────────────────────────────────────────── */
-  .fixbox{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
-
-  .note{
-    padding:11px 14px;border-radius:8px;font-size:13px;margin-top:12px;
-    border:1px solid;
-  }
-  .n-warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent);
-          background:color-mix(in srgb,var(--warn) 10%,transparent)}
-  .n-ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 35%,transparent);
-        background:color-mix(in srgb,var(--ok) 10%,transparent)}
-  .n-err{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 35%,transparent);
-         background:color-mix(in srgb,var(--danger) 10%,transparent)}
-  .n-err code{font:12px var(--mono);display:block;margin-top:6px;opacity:.85;word-break:break-all}
-
-  /* ── footer stats ───────────────────────────────────────── */
-  .stats{display:flex;gap:22px;flex-wrap:wrap;margin-top:26px;padding-top:18px;
-         border-top:1px solid var(--line);font-size:12.5px;color:var(--faint)}
-  .stat b{display:block;color:var(--text);font:600 16px/1.3 var(--mono)}
-
-  .langsel{
-    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
-    padding:7px 10px;border-radius:8px;font:13px inherit;cursor:pointer;
-  }
-  .langsel:hover{border-color:var(--muted)}
-  .langsel:focus{outline:none;border-color:var(--accent)}
-
-  .untranslated{
-    margin-top:10px;padding:9px 12px;border-radius:8px;font-size:12.5px;
-    color:var(--muted);background:var(--panel-2);border:1px dashed var(--line);
-  }
-
-  .spin{
-    display:inline-block;width:13px;height:13px;border:2px solid currentColor;
-    border-right-color:transparent;border-radius:50%;animation:sp .6s linear infinite;
-    vertical-align:-2px;margin-right:7px;
-  }
-  @keyframes sp{to{transform:rotate(360deg)}}
-  .mono{font-family:var(--mono)}
+  body { font-family: "Be Vietnam Pro", sans-serif; }
+  h1,h2,h3,h4,h5 { font-family: "Plus Jakarta Sans", sans-serif; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .fill { font-variation-settings: 'FILL' 1; }
+  .glass-card { background: rgba(255,255,255,0.72); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.5); }
+  .glow-hover { transition: box-shadow .25s, transform .25s; }
+  .glow-hover:hover { box-shadow: 0 12px 40px -10px rgba(0,120,212,.30); transform: translateY(-2px); }
+  .liquid { position: relative; overflow: hidden; }
+  .liquid::after { content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent); animation: liquid 2.4s infinite ease-in-out; }
+  @keyframes liquid { 0%{left:-100%} 100%{left:100%} }
+  .spin { display:inline-block; width:16px; height:16px; border:2px solid currentColor; border-right-color:transparent;
+    border-radius:50%; animation:sp .6s linear infinite; vertical-align:-3px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  #result { display:none; }
+  #result.show { display:block; animation: rise .3s ease; }
+  @keyframes rise { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none} }
+  .meter { height:5px; background:#c0c7d4; border-radius:9999px; overflow:hidden; }
+  .meter > i { display:block; height:100%; border-radius:9999px; transition:width .5s ease; }
 </style>
 </head>
-<body>
-<div class="wrap">
 
-  <header>
-    <div class="brand">
-      <span class="bolt">⚡</span>
-      <span>AzureAutoFix<small>Detect · explain · fix Azure AD errors</small></span>
-    </div>
-    <div class="spacer"></div>
-    <select class="langsel" id="lang" aria-label="Language"></select>
-    <div class="who" id="who">
-      <button class="btn-ms" id="signin">
-        <svg class="ms-logo" viewBox="0 0 23 23" aria-hidden="true">
-          <path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/>
-          <path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/>
-        </svg>
-        Sign in with Microsoft
+<body class="bg-surface-container-low text-on-surface min-h-screen">
+
+<aside class="hidden lg:flex flex-col py-8 border-r border-outline-variant/30 fixed left-0 h-screen w-72 bg-surface-container-low z-50">
+  <div class="px-6 mb-10 brand">
+    <h1 class="text-2xl font-extrabold text-primary">AzureAutoFix</h1>
+    <small class="text-[13px] font-semibold text-on-surface-variant/70">Cloud Wellness Engine</small>
+  </div>
+  <nav class="flex-1 space-y-1 px-4">
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+      <span class="material-symbols-outlined">analytics</span><span id="nav-overview" class="font-bold">Overview</span></a>
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+      <span class="material-symbols-outlined">radar</span><span id="nav-detection" class="font-bold">Live Detection</span></a>
+    <a class="flex items-center gap-4 py-3 px-4 bg-primary-fixed text-on-primary-fixed rounded-full font-bold shadow-sm" href="#">
+      <span class="material-symbols-outlined fill">build_circle</span><span id="nav-remediation" class="font-bold">Remediation</span></a>
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+      <span class="material-symbols-outlined">menu_book</span><span id="nav-registry" class="font-bold">Registry</span></a>
+    <a class="flex items-center gap-4 py-3 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all hover:translate-x-1" href="#">
+      <span class="material-symbols-outlined">article</span><span id="nav-logs" class="font-bold">Logs</span></a>
+  </nav>
+  <div class="mt-auto px-4 space-y-1">
+    <a class="flex items-center gap-4 py-2.5 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all" href="https://github.com/aminabk99/AzureAutoFix" target="_blank" rel="noopener">
+      <span class="material-symbols-outlined">help_outline</span><span id="nav-support" class="font-bold text-[13px]">Support</span></a>
+    <a class="flex items-center gap-4 py-2.5 px-4 text-on-surface-variant hover:bg-surface-variant/50 rounded-full transition-all" href="/docs" target="_blank">
+      <span class="material-symbols-outlined">settings</span><span id="nav-settings" class="font-bold text-[13px]">Settings</span></a>
+    <div id="who" class="mt-4 p-4 glass-card rounded-xl">
+      <button id="signin" class="w-full flex items-center justify-center gap-2 bg-white border border-outline-variant text-on-surface font-semibold text-sm py-2.5 rounded-full hover:bg-surface-container transition-colors">
+        <svg width="16" height="16" viewBox="0 0 23 23" aria-hidden="true"><path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/><path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/></svg>
+        <span> Sign in with Microsoft</span>
       </button>
     </div>
-  </header>
-
-  <!-- ── input ─────────────────────────────────────────── -->
-  <div class="panel">
-    <h2 id="input-title">Paste an Azure AD error</h2>
-    <p class="sub" id="input-sub">An AADSTS code, or just describe what happened in plain English.</p>
-    <textarea id="input" rows="3"
-      placeholder="AADSTS900971: No reply address provided.&#10;&#10;…or: &quot;user can't sign in, says admin approval needed&quot;"></textarea>
-
-    <div class="samples" id="samples"></div>
-
-    <div class="row">
-      <button class="btn" id="analyze">Analyze</button>
-      <span class="hint" id="hint">Read-only. Nothing is changed in your tenant.</span>
-    </div>
   </div>
+</aside>
 
-  <!-- ── result ────────────────────────────────────────── -->
-  <div class="panel" id="result">
-    <div class="rhead">
-      <div>
-        <div class="code" id="r-code">—</div>
-        <div class="hint mono" id="r-cat"></div>
-      </div>
-      <div class="badges" id="r-badges"></div>
-    </div>
-
-    <p class="explain" id="r-explain"></p>
-    <div class="reason" id="r-reason"></div>
-    <div class="meter" title="model confidence"><i id="r-meter" style="width:0"></i></div>
-    <div class="hint" id="r-conf" style="margin-top:6px"></div>
-
-    <ol class="steps" id="r-steps"></ol>
-    <div class="untranslated" id="r-untranslated" style="display:none"></div>
-    <div class="cite" id="r-cite" style="display:none"></div>
-
-    <!-- auto-fix -->
-    <div class="fixbox" id="fixbox" style="display:none">
-      <h2 id="fix-title">Apply the fix</h2>
-      <p class="sub" id="fix-sub">Runs against your tenant through the Microsoft Graph API.</p>
-      <div class="grid2">
-        <div><label for="f-user" id="lbl-user">User object ID</label><input type="text" id="f-user" placeholder="00000000-0000-…" /></div>
-        <div><label for="f-app" id="lbl-app">App object ID</label><input type="text" id="f-app" placeholder="00000000-0000-…" /></div>
-        <div><label for="f-uri" id="lbl-uri">Redirect URI</label><input type="text" id="f-uri" placeholder="https://localhost/auth" /></div>
-        <div><label for="f-scope" id="lbl-scope">New scope</label><input type="text" id="f-scope" placeholder="User.Read" /></div>
-      </div>
-      <div class="row"><button class="btn" id="dofix">Fix it now</button></div>
-      <div id="fixnote"></div>
-    </div>
-
-    <!-- escalation -->
-    <div class="fixbox" id="escbox" style="display:none">
-      <h2 id="esc-title">Escalate to your admin</h2>
-      <p class="sub" id="esc-sub">Pre-written — copy and send.</p>
-      <div class="row"><button class="btn-ghost" id="doesc">Draft the message</button></div>
-      <div id="escout"></div>
-    </div>
+<header class="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-surface/80 backdrop-blur-xl flex justify-between items-center px-5 md:px-10 z-40 border-b border-outline-variant/20">
+  <div class="flex items-center gap-4 min-w-0">
+    <span class="material-symbols-outlined text-primary lg:hidden">menu</span>
+    <h2 id="page-title" class="text-xl md:text-2xl font-bold tracking-tight text-primary truncate">AzureAutoFix</h2>
   </div>
+  <div class="flex items-center gap-2 shrink-0">
+    <span class="material-symbols-outlined text-on-surface-variant">translate</span>
+    <select id="lang" aria-label="Language" class="bg-surface-container border border-outline-variant/50 text-on-surface text-sm rounded-full py-1.5 pl-3 pr-8 font-semibold cursor-pointer focus:outline-none focus:border-primary"></select>
+  </div>
+</header>
 
-  <div class="stats" id="stats"></div>
-</div>
+<main class="lg:ml-72 pt-24 pb-32 px-5 md:px-10 min-h-screen">
+  <div class="max-w-4xl mx-auto space-y-8">
+
+    <section class="p-6 md:p-8 glass-card rounded-[28px] shadow-sm">
+      <h3 id="input-title" class="text-xl font-bold mb-1">Paste an Azure AD error</h3>
+      <p id="input-sub" class="text-on-surface-variant mb-4">An AADSTS code, or just describe what happened in plain English.</p>
+      <textarea id="input" rows="3" class="w-full bg-surface-container-lowest border-2 border-outline-variant/60 rounded-xl p-3.5 text-on-surface font-mono text-sm resize-y focus:outline-none focus:border-primary transition-colors" placeholder="AADSTS900971: No reply address provided."></textarea>
+      <div id="samples" class="flex flex-wrap gap-2 mt-3"></div>
+      <div class="flex items-center gap-4 mt-4 flex-wrap">
+        <button id="analyze" class="liquid bg-primary text-on-primary font-bold px-7 py-3 rounded-full shadow-lg hover:shadow-primary/20 glow-hover active:scale-95 transition-all">Analyze</button>
+        <span id="hint" class="text-sm text-on-surface-variant/70">Read-only. Nothing is changed in your tenant.</span>
+      </div>
+    </section>
+
+    <section id="waiting" class="p-10 text-center glass-card rounded-[28px]">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-3xl bg-primary-fixed text-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-[36px]">spa</span>
+      </div>
+      <h3 id="waiting-title" class="text-lg font-bold mb-1">Paste an Azure AD error to begin</h3>
+      <p id="waiting-sub" class="text-on-surface-variant max-w-md mx-auto">Analysis is read-only. Nothing in your tenant changes until you choose a fix.</p>
+    </section>
+
+    <div id="result">
+      <section class="mb-10">
+        <div class="flex items-start gap-5 p-6 md:p-8 glass-card rounded-[32px] shadow-sm relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -mr-16 -mt-16"></div>
+          <div id="r-icon" class="bg-error-container text-on-error-container p-4 rounded-3xl shrink-0">
+            <span class="material-symbols-outlined text-[36px]">lock_reset</span>
+          </div>
+          <div class="min-w-0">
+            <h3 id="r-title" class="text-2xl md:text-3xl font-bold mb-1">—</h3>
+            <p id="r-explain" class="text-on-surface-variant max-w-2xl"></p>
+            <p id="r-reason" class="text-sm text-on-surface-variant/80 mt-2 italic"></p>
+            <div id="r-badges" class="mt-4 flex flex-wrap gap-2 items-center"></div>
+            <div class="mt-3 max-w-xs">
+              <div class="meter"><i id="r-meter" style="width:0"></i></div>
+              <div id="r-conf" class="text-xs text-on-surface-variant/70 mt-1.5"></div>
+            </div>
+            <div id="r-untranslated" class="mt-3 text-xs text-on-surface-variant bg-surface-container px-3 py-2 rounded-lg border border-dashed border-outline-variant/50" style="display:none"></div>
+            <div id="r-cite" class="mt-3 text-xs text-on-surface-variant" style="display:none"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="relative space-y-12">
+        <div id="userbox" class="relative flex flex-col md:flex-row gap-6 items-start" style="display:none">
+          <div class="relative z-10 w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center font-bold shrink-0 shadow-lg">1</div>
+          <div class="flex-1 space-y-5">
+            <div>
+              <h4 id="path1-title" class="text-xl font-bold">Path 1 — You fix it</h4>
+              <p id="path1-sub" class="text-on-surface-variant">Follow these steps to resolve it yourself.</p>
+            </div>
+            <div id="r-steps" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+        </div>
+
+        <div id="fixbox" class="relative flex flex-col md:flex-row gap-6 items-start" style="display:none">
+          <div class="relative z-10 w-11 h-11 rounded-full bg-secondary text-white flex items-center justify-center font-bold shrink-0 shadow-lg">2</div>
+          <div class="flex-1 space-y-5">
+            <div>
+              <h4 id="fix-title" class="text-xl font-bold">Path 2 — Auto-fix</h4>
+              <p id="fix-sub" class="text-on-surface-variant">Runs against your tenant through the Microsoft Graph API.</p>
+            </div>
+            <div class="p-6 md:p-8 glass-card rounded-[28px] border-2 border-primary/10 bg-gradient-to-br from-primary-fixed/30 to-surface-container-lowest">
+              <div class="flex items-center gap-3 text-primary mb-2">
+                <span class="material-symbols-outlined fill">auto_fix_high</span>
+                <h5 id="instant-title" class="text-lg font-bold">Instant remediation</h5>
+              </div>
+              <p class="text-on-surface-variant mb-5">We call the Graph API to resolve this for the identity you specify.</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                <label class="text-xs font-semibold text-on-surface-variant"><span id="lbl-user">User object ID</span>
+                  <input id="f-user" type="text" placeholder="00000000-0000-…" class="mt-1 w-full bg-surface-container-lowest border-2 border-outline-variant/50 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:border-primary" /></label>
+                <label class="text-xs font-semibold text-on-surface-variant"><span id="lbl-app">App object ID</span>
+                  <input id="f-app" type="text" placeholder="00000000-0000-…" class="mt-1 w-full bg-surface-container-lowest border-2 border-outline-variant/50 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:border-primary" /></label>
+                <label class="text-xs font-semibold text-on-surface-variant"><span id="lbl-uri">Redirect URI</span>
+                  <input id="f-uri" type="text" placeholder="https://localhost/auth" class="mt-1 w-full bg-surface-container-lowest border-2 border-outline-variant/50 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:border-primary" /></label>
+                <label class="text-xs font-semibold text-on-surface-variant"><span id="lbl-scope">New scope</span>
+                  <input id="f-scope" type="text" placeholder="User.Read" class="mt-1 w-full bg-surface-container-lowest border-2 border-outline-variant/50 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:border-primary" /></label>
+              </div>
+              <button id="dofix" class="liquid group inline-flex items-center gap-3 bg-primary text-on-primary px-7 py-4 rounded-full font-bold text-lg shadow-xl glow-hover active:scale-95 transition-all">
+                <span>Run the fix</span>
+                <span class="material-symbols-outlined group-hover:rotate-12 transition-transform">auto_fix_high</span>
+              </button>
+              <div id="fixnote" class="mt-4"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="escbox" class="relative flex flex-col md:flex-row gap-6 items-start" style="display:none">
+          <div class="relative z-10 w-11 h-11 rounded-full bg-on-surface-variant text-white flex items-center justify-center font-bold shrink-0 shadow-lg">3</div>
+          <div class="flex-1 space-y-5">
+            <div>
+              <h4 id="esc-title" class="text-xl font-bold">Path 3 — Escalate</h4>
+              <p id="esc-sub" class="text-on-surface-variant">Pre-written — copy and send to your IT department.</p>
+            </div>
+            <div class="p-6 glass-card rounded-[28px] border border-outline-variant/30">
+              <button id="doesc" class="flex items-center gap-4 w-full text-left group">
+                <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors shadow-sm shrink-0">
+                  <span class="material-symbols-outlined">mail</span>
+                </div>
+                <div>
+                  <p class="font-bold">Draft IT support email</p>
+                  <p class="text-sm text-on-surface-variant">Generates a detailed incident report with the technical details.</p>
+                </div>
+                <span class="material-symbols-outlined text-outline-variant group-hover:text-primary group-hover:translate-x-1 transition-all ml-auto">arrow_forward_ios</span>
+              </button>
+              <div id="escout" class="mt-4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-3"></section>
+  </div>
+</main>
 
 <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   AzureAutoFix — demo frontend
-
-   Replaces the old Streamlit app. Two reasons that mattered:
-
-   1. Streamlit reruns the whole script on every interaction and has no
-      real routing, so an OAuth redirect round-trip is painful to hold
-      onto. The previous UI never actually implemented sign-in at all --
-      it had a "paste your Graph token here" password box, which is why
-      signing in appeared broken. There was nothing to break.
-
-   2. MSAL.js is designed for exactly this: loginPopup() hands back a
-      real delegated token scoped to the signed-in admin, so /fix acts
-      as *them*, not as stored app credentials.
-   ═══════════════════════════════════════════════════════════════ */
-
 const API = location.origin.includes("localhost") || location.origin.includes("127.0.0.1")
   ? "http://localhost:8000" : location.origin;
-
 const $ = id => document.getElementById(id);
 let pca = null, account = null, cfg = null, last = null;
-
-/* i18n state. `T` is the active UI string bundle; every user-visible string
-   in this file is looked up through t() rather than hardcoded, so adding a
-   language is a JSON file in data/i18n/ and nothing else. */
 let LANG = localStorage.getItem("azureautofix.lang") || "";
 let T = {};
 const t = (k, fallback) => (T && T[k]) || fallback || k;
 
-/* ── boot ─────────────────────────────────────────────────── */
 (async function boot(){
-  await loadLanguage(LANG);      // populates T and the picker
+  await loadLanguage(LANG);
   renderSamples();
-  try{
-    cfg = await (await fetch(API + "/auth/config")).json();
-  }catch(e){
-    return signinUnavailable("Backend unreachable at " + API);
-  }
-
-  if(!cfg.configured){
-    return signinUnavailable(cfg.reason || "Sign-in is not configured on this deployment.");
-  }
-
+  try{ cfg = await (await fetch(API + "/auth/config")).json(); }
+  catch(e){ return signinUnavailable("Backend unreachable at " + API); }
+  if(!cfg.configured){ return signinUnavailable(cfg.reason || "Sign-in is not configured on this deployment."); }
   pca = new msal.PublicClientApplication({
-    auth:{
-      clientId: cfg.client_id,
-      authority: "https://login.microsoftonline.com/" + cfg.tenant_id,
-      redirectUri: location.origin + location.pathname,
-    },
+    auth:{ clientId: cfg.client_id, authority: "https://login.microsoftonline.com/" + cfg.tenant_id,
+      redirectUri: location.origin + location.pathname },
     cache:{ cacheLocation:"sessionStorage", storeAuthStateInCookie:false },
   });
-  if (typeof pca.initialize === 'function') await pca.initialize();
-
+  if (typeof pca.initialize === "function") await pca.initialize();
   const existing = pca.getAllAccounts();
   if(existing.length){ account = existing[0]; paintAccount(); }
 })();
 
-/* ── i18n ─────────────────────────────────────────────────────────────── */
-
 async function loadLanguage(code){
   try{
-    // Empty code lets the backend negotiate from the browser's
-    // Accept-Language header, so a Spanish-locale visitor gets Spanish
-    // without touching the picker.
     const res = await fetch(API + "/i18n/" + (code || "auto"));
     const b = await res.json();
-    LANG = b.lang;
-    T = b.strings || {};
+    LANG = b.lang; T = b.strings || {};
     document.documentElement.lang = LANG;
     renderLangPicker(b.available || []);
     applyStaticStrings();
-  }catch(e){
-    // A missing bundle must not break the page -- fall back to the English
-    // already baked into the markup.
-    console.warn("i18n unavailable:", e);
-  }
+  }catch(e){ console.warn("i18n unavailable:", e); }
 }
 
 function renderLangPicker(available){
-  const sel = $("lang");
-  if(!sel) return;
-  sel.innerHTML = available
-    .map(l => `<option value="${esc(l.code)}"${l.code === LANG ? " selected" : ""}>`
-            + `${esc(l.native_name)}</option>`).join("");
+  const sel = $("lang"); if(!sel) return;
+  sel.innerHTML = available.map(l =>
+    `<option value="${esc(l.code)}"${l.code === LANG ? " selected" : ""}>${esc(l.native_name)}</option>`).join("");
   sel.onchange = async () => {
-    LANG = sel.value;
-    localStorage.setItem("azureautofix.lang", LANG);
+    LANG = sel.value; localStorage.setItem("azureautofix.lang", LANG);
     await loadLanguage(LANG);
-    // Re-run the last analysis so the result switches language too, rather
-    // than leaving a stale response in the previous one.
     if(last && $("input").value.trim()) doAnalyze();
   };
 }
 
-/* Swap the static chrome. Kept as an explicit map so a missing key falls
-   back to whatever English is already in the DOM instead of blanking it. */
 function applyStaticStrings(){
-  const set = (id, key, attr) => {
-    const el = $(id); if(!el) return;
-    const v = T[key]; if(!v) return;
-    if(attr) el.setAttribute(attr, v); else el.textContent = v;
-  };
-  const sel = $("lang");
-  if(sel && T.language) sel.setAttribute("aria-label", T.language);
+  const set = (id, key, attr) => { const el = $(id); if(!el) return; const v = T[key]; if(!v) return;
+    if(attr) el.setAttribute(attr, v); else el.textContent = v; };
   const tagline = document.querySelector(".brand small");
   if(tagline && T.tagline) tagline.textContent = T.tagline;
-
-  set("input-title",  "input_title");
-  set("input-sub",    "input_sub");
-  set("input",        "input_placeholder", "placeholder");
-  set("analyze",      "analyze");
-  set("hint",         "readonly_hint");
-  set("fix-title",    "fix_title");
-  set("fix-sub",      "fix_sub");
-  set("lbl-user",     "field_user_id");
-  set("lbl-app",      "field_app_id");
-  set("lbl-uri",      "field_redirect_uri");
-  set("lbl-scope",    "field_scope");
-  set("dofix",        "fix_button");
-  set("esc-title",    "esc_title");
-  set("esc-sub",      "esc_sub");
-  set("doesc",        "esc_button");
-  const signin = $("signin");
-  if(signin && T.signin) signin.lastChild.textContent = " " + T.signin;
+  set("nav-overview","nav_overview"); set("nav-detection","nav_detection"); set("nav-remediation","nav_remediation");
+  set("nav-registry","nav_registry"); set("nav-logs","nav_logs"); set("nav-support","nav_support"); set("nav-settings","nav_settings");
+  set("input-title","input_title"); set("input-sub","input_sub"); set("input","input_placeholder","placeholder");
+  set("analyze","analyze"); set("hint","readonly_hint");
+  set("waiting-title","waiting_title"); set("waiting-sub","waiting_sub");
+  set("path1-title","path1_title"); set("path1-sub","path1_sub");
+  set("fix-title","path2_title"); set("fix-sub","fix_sub"); set("instant-title","instant_remediation");
+  set("lbl-user","field_user_id"); set("lbl-app","field_app_id"); set("lbl-uri","field_redirect_uri"); set("lbl-scope","field_scope");
+  set("esc-title","path3_title"); set("esc-sub","esc_sub");
+  const sel = $("lang"); if(sel && T.language) sel.setAttribute("aria-label", T.language);
+  const fixSpan = $("dofix") && $("dofix").querySelector("span:first-child");
+  if(fixSpan && T.run_magic_fix) fixSpan.textContent = T.run_magic_fix;
+  const signinSpan = $("signin") && $("signin").querySelector("span");
+  if(signinSpan && T.signin) signinSpan.textContent = " " + T.signin;
   if(account) paintAccount();
   if(last) paintResult(last);
 }
 
 function signinUnavailable(reason){
-  $("who").innerHTML =
-    `<span class="hint" title="${esc(reason)}">${esc(t("signin_unavailable",
-       "Sign-in unavailable — analysis still works"))}</span>`;
+  $("who").innerHTML = `<p class="text-xs text-on-surface-variant text-center" title="${esc(reason)}">${
+    esc(t("signin_unavailable","Sign-in unavailable — analysis still works"))}</p>`;
 }
 
-/* ── auth ─────────────────────────────────────────────────── */
-$("signin").onclick = async () => {
-  try{
-    const res = await pca.loginPopup({ scopes: cfg.scopes, prompt:"select_account" });
-    account = res.account;
-    paintAccount();
-  }catch(e){
-    // Surface the real AADSTS code instead of a generic failure -- this is
-    // an Azure AD error resolution tool, it should resolve its own.
-    note("fixnote", "n-err", t("signin_failed","Sign-in failed"), msalReason(e));
+document.addEventListener("click", async (e) => {
+  if(e.target.closest && e.target.closest("#signin") && pca){
+    try{
+      const res = await pca.loginPopup({ scopes: cfg.scopes, prompt:"select_account" });
+      account = res.account; paintAccount();
+    }catch(err){ note("fixnote","n-err", t("signin_failed","Sign-in failed"), msalReason(err)); }
   }
-};
+});
 
 function paintAccount(){
   const name = account.name || account.username || "Signed in";
-  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0,2)
-    .map(s=>s[0].toUpperCase()).join("");
+  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0,2).map(s=>s[0].toUpperCase()).join("");
   $("who").innerHTML =
-    `<span class="avatar">${esc(initials)}</span>
-     <span>${esc(name)}</span>
-     <button class="btn-ghost" id="signout">${esc(t("signout","Sign out"))}</button>`;
-  $("signout").onclick = async () => {
-    await pca.logoutPopup({ account });
-    account = null; location.reload();
-  };
+    `<div class="flex items-center gap-3">
+       <div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shrink-0">${esc(initials)}</div>
+       <div class="min-w-0"><p class="font-bold text-sm truncate">${esc(name)}</p>
+         <button id="signout" class="text-xs text-primary hover:underline">${esc(t("signout","Sign out"))}</button></div>
+     </div>`;
+  $("signout").onclick = async () => { await pca.logoutPopup({ account }); account = null; location.reload(); };
 }
 
 async function getToken(){
   if(!account) return null;
-  try{
-    const r = await pca.acquireTokenSilent({ scopes: cfg.scopes, account });
-    return r.accessToken;
-  }catch{
-    const r = await pca.acquireTokenPopup({ scopes: cfg.scopes, account });
-    return r.accessToken;
-  }
+  try{ return (await pca.acquireTokenSilent({ scopes: cfg.scopes, account })).accessToken; }
+  catch{ return (await pca.acquireTokenPopup({ scopes: cfg.scopes, account })).accessToken; }
 }
 
-/* Map MSAL/AAD failures to something actionable. */
 function msalReason(e){
   const msg = (e && (e.errorMessage || e.message)) || String(e);
   const code = (msg.match(/AADSTS\d+/) || [])[0];
   const known = {
-    AADSTS50011: "The redirect URI isn't registered. In your app registration, add "
-               + location.origin + location.pathname + " under Authentication → "
-               + "Single-page application (not Web).",
+    AADSTS50011: "The redirect URI isn't registered. Add " + location.origin + location.pathname + " under Authentication → Single-page application (not Web).",
     AADSTS650053: "The requested Graph scope isn't consented for this app.",
     AADSTS700016: "This app registration isn't in the signed-in user's tenant.",
     AADSTS90002:  "Tenant not found — check AZURE_TENANT_ID.",
-    AADSTS7000215:"Invalid client secret — but a SPA shouldn't send one. Make sure the "
-               + "redirect URI is registered under 'Single-page application'.",
+    AADSTS7000215:"A SPA shouldn't send a client secret. Register the redirect URI under 'Single-page application'.",
   };
   if(code && known[code]) return code + " — " + known[code];
-  if(/popup_window_error|BrowserAuthError/i.test(msg))
-    return "The sign-in popup was blocked. Allow popups for this site and retry.";
+  if(/popup_window_error|BrowserAuthError/i.test(msg)) return "The sign-in popup was blocked. Allow popups for this site and retry.";
   return msg;
 }
 
-/* ── analyze ──────────────────────────────────────────────── */
-const SAMPLES = ["AADSTS900971","AADSTS50053","AADSTS50126","AADSTS65001",
-                 "AADSTS700011","user needs admin approval to sign in"];
-
+const SAMPLES = ["AADSTS900971","AADSTS50053","AADSTS50126","AADSTS65001","AADSTS700011","user needs admin approval to sign in"];
 function renderSamples(){
-  $("samples").innerHTML = SAMPLES
-    .map(s=>`<button class="chip">${esc(s)}</button>`).join("");
-  [...$("samples").children].forEach((b,i)=>
-    b.onclick = () => { $("input").value = SAMPLES[i]; doAnalyze(); });
+  $("samples").innerHTML = SAMPLES.map(s =>
+    `<button class="chip bg-surface-container border border-outline-variant/50 text-on-surface-variant hover:border-primary hover:text-primary text-xs font-mono px-3 py-1.5 rounded-full transition-colors">${esc(s)}</button>`).join("");
+  [...$("samples").children].forEach((b,i)=> b.onclick = () => { $("input").value = SAMPLES[i]; doAnalyze(); });
 }
 
 $("analyze").onclick = doAnalyze;
-$("input").addEventListener("keydown", e => {
-  if((e.metaKey||e.ctrlKey) && e.key === "Enter") doAnalyze();
-});
+$("input").addEventListener("keydown", e => { if((e.metaKey||e.ctrlKey) && e.key === "Enter") doAnalyze(); });
 
 async function doAnalyze(){
   const text = $("input").value.trim();
   if(!text) return;
-
   const btn = $("analyze");
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>' + t("analyzing","Analyzing");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> ' + t("analyzing","Analyzing");
   const t0 = performance.now();
-
   try{
-    const res = await fetch(API + "/analyze", {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ error_input: text, lang: LANG }),
-    });
+    const res = await fetch(API + "/analyze", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ error_input: text, lang: LANG }) });
     if(!res.ok) throw new Error(await res.text());
     last = await res.json();
-    // Server-measured time, set by the tracing middleware.
     last._ms = res.headers.get("X-Response-Time-ms") || (performance.now()-t0).toFixed(0);
     paintResult(last);
   }catch(e){
+    $("waiting").style.display = "none";
     $("result").classList.add("show");
-    $("r-code").textContent = t("request_failed","Request failed");
+    $("r-title").textContent = t("request_failed","Request failed");
     $("r-explain").textContent = String(e.message || e);
-    $("r-reason").textContent = ""; $("r-steps").innerHTML = "";
-    $("r-badges").innerHTML = ""; $("fixbox").style.display = "none";
-    $("escbox").style.display = "none"; $("r-cite").style.display = "none";
-  }finally{
-    btn.disabled = false; btn.textContent = t("analyze","Analyze");
-  }
+    $("r-reason").textContent = ""; $("r-badges").innerHTML = "";
+    ["userbox","fixbox","escbox"].forEach(id => $(id).style.display = "none");
+  }finally{ btn.disabled = false; btn.textContent = t("analyze","Analyze"); }
 }
 
 const CAT = {
-  admin_auto:     ["b-auto", "cat_admin_auto",     "Auto-fixable"],
-  admin_escalate: ["b-esc",  "cat_admin_escalate", "Escalate to admin"],
-  user:           ["b-user", "cat_user",           "You can fix this"],
-  retry:          ["b-user", "cat_retry",          "Transient — retry"],
+  admin_auto:     ["bg-ok-container text-ok",                    "cat_admin_auto",     "Auto-fixable"],
+  admin_escalate: ["bg-primary-fixed text-on-primary-fixed",     "cat_admin_escalate", "Escalate to admin"],
+  user:           ["bg-secondary-fixed text-on-secondary-fixed", "cat_user",           "You can fix this"],
+  retry:          ["bg-secondary-fixed text-on-secondary-fixed", "cat_retry",          "Transient — retry"],
 };
+const ICON = { admin_auto:"auto_fix_high", admin_escalate:"forward_to_inbox", user:"manage_accounts", retry:"cached", abstain:"help" };
+function chip(cls, text){ return `<span class="text-xs font-semibold px-3 py-1 rounded-full ${cls}">${esc(text)}</span>`; }
 
 function paintResult(r){
+  $("waiting").style.display = "none";
   $("result").classList.add("show");
-  $("r-code").textContent = r.error_code || "UNKNOWN";
-  $("r-cat").textContent  = (r.action || "") + (r.user_or_admin ? " · " + r.user_or_admin : "");
-
-  const [cls, catKey, catFallback] = CAT[r.fix_category] || ["b-src", null, r.fix_category || "—"];
-  const lbl = catKey ? t(catKey, catFallback) : catFallback;
-  const srcLabel = {
-    lookup:    t("source_lookup",    "exact match"),
-    retrieval: t("source_retrieval", "retrieved"),
-    model:     t("source_model",     "model inference"),
-    abstain:   t("source_abstain",   "not identified"),
-  }[r.source] || r.source;
-  $("r-badges").innerHTML =
-      `<span class="badge ${cls}">${esc(lbl)}</span>`
-    + `<span class="badge b-src">${esc(srcLabel)}</span>`
-    + `<span class="badge b-src">${esc(r._ms)} ms</span>`;
-
+  const code = r.error_code || "UNKNOWN";
+  $("page-title").textContent = code === "UNKNOWN" ? "AzureAutoFix" : code;
+  $("r-title").textContent = code;
+  const abst = r.source === "abstain" || r.abstained;
+  $("r-icon").className = (abst ? "bg-surface-container-high text-on-surface-variant" : "bg-error-container text-on-error-container") + " p-4 rounded-3xl shrink-0";
+  $("r-icon").innerHTML = `<span class="material-symbols-outlined text-[36px]">${ICON[abst?"abstain":r.fix_category]||"error"}</span>`;
   $("r-explain").textContent = r.explanation || "";
   $("r-reason").textContent  = r.reasoning || "";
-
+  const cat = CAT[r.fix_category] || ["bg-surface-container text-on-surface-variant", null, r.fix_category || "—"];
+  const catLbl = cat[1] ? t(cat[1], cat[2]) : cat[2];
+  const srcLabel = { lookup:t("source_lookup","exact match"), retrieval:t("source_retrieval","retrieved"),
+    model:t("source_model","model inference"), abstain:t("source_abstain","not identified") }[r.source] || r.source;
+  const sevText = { admin_auto:"Medium", admin_escalate:"High", user:"Low", retry:"Low" }[r.fix_category] || "—";
+  $("r-badges").innerHTML = chip(cat[0], catLbl)
+    + chip("bg-primary-fixed text-on-primary-fixed", `${t("severity","Severity")}: ${sevText}`)
+    + chip("bg-surface-container text-on-surface-variant", srcLabel)
+    + chip("bg-surface-container text-on-surface-variant", `${r._ms} ms`);
   const pct = Math.round((r.confidence ?? 0) * 100);
   $("r-meter").style.width = pct + "%";
-  $("r-meter").style.background = pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--danger)";
+  $("r-meter").style.background = pct >= 80 ? "#2e7d32" : pct >= 50 ? "#845400" : "#ba1a1a";
   $("r-conf").textContent = `${pct}% ${t("confidence","confidence")} · ${srcLabel}`
     + (r.source === "lookup" ? "" : " · " + t("verify_before_applying","verify before applying"));
-
-  $("r-steps").innerHTML = (r.steps && r.steps.length)
-    ? r.steps.map(s=>`<li>${esc(s)}</li>`).join("")
-    : (r.action_detail ? `<li>${esc(r.action_detail)}</li>` : "");
-
-  // Be explicit when the explanation is Microsoft's source text rather than
-  // copy we authored and translated. Silently mixing languages without
-  // saying so is worse than showing English.
   const un = $("r-untranslated");
   if(LANG !== "en" && r.explanation_translated === false){
     un.style.display = "block";
-    un.textContent = t("untranslated_notice",
-      "This description comes from Microsoft's documentation and is shown in English.");
+    un.textContent = t("untranslated_notice","This description comes from Microsoft's documentation and is shown in English.");
   } else un.style.display = "none";
-
-  // Citations.
   if(r.citations && r.citations.length){
     $("r-cite").style.display = "block";
     $("r-cite").innerHTML = t("source_label","Source") + ": " + r.citations
-      .map(c => c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title||c.url)}</a>`
-                      : esc(c.title||"")).join(" · ");
+      .map(c => c.url ? `<a class="text-primary hover:underline" href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title||c.url)}</a>` : esc(c.title||"")).join(" · ");
   } else $("r-cite").style.display = "none";
-
-  $("fixbox").style.display = r.fix_category === "admin_auto" ? "block" : "none";
-  $("escbox").style.display = r.fix_category === "admin_escalate" ? "block" : "none";
-  $("fixnote").innerHTML = ""; $("escout").innerHTML = "";
-
+  const steps = (r.steps && r.steps.length) ? r.steps : (r.action_detail ? [r.action_detail] : []);
+  const showUser = ["user","retry"].includes(r.fix_category) || abst;
+  $("userbox").style.display = showUser && steps.length ? "flex" : "none";
+  if(showUser && steps.length){
+    $("r-steps").innerHTML = steps.map((s,i) => `
+      <div class="p-5 bg-surface-container-highest rounded-3xl border border-transparent hover:bg-white hover:border-primary/20 transition-all">
+        <div class="flex items-center gap-2 mb-2 text-primary"><span class="material-symbols-outlined text-[20px]">chevron_right</span>
+          <p class="font-bold text-sm">${t("step","Step")} ${i+1}</p></div>
+        <p class="text-sm">${esc(s)}</p></div>`).join("");
+  }
+  $("fixbox").style.display = r.fix_category === "admin_auto" ? "flex" : "none";
+  $("fixnote").innerHTML = "";
   if(r.fix_category === "admin_auto" && !account)
     note("fixnote","n-warn", t("signin_required","Sign-in required"),
          t("signin_required_body","Sign in with a Microsoft admin account to apply this fix."));
-
+  $("escbox").style.display = "flex";
+  $("escout").innerHTML = "";
   refreshStats();
 }
 
-/* ── fix ──────────────────────────────────────────────────── */
 $("dofix").onclick = async () => {
-  if(!account)
-    return note("fixnote","n-warn", t("signin_required","Sign-in required"),
-                t("signin_required_body","Sign in with a Microsoft admin account first."));
-
-  const btn = $("dofix");
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>' + t("fixing","Applying");
+  if(!account) return note("fixnote","n-warn", t("signin_required","Sign-in required"),
+    t("signin_required_body","Sign in with a Microsoft admin account first."));
+  const btn = $("dofix"); const label = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> ' + t("fixing","Applying");
   try{
     const token = await getToken();
-    const res = await fetch(API + "/fix", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json",
-                ...(cfg.demo_api_key_required ? {"X-API-Key": prompt("Demo API key:") || ""} : {}) },
-      body: JSON.stringify({
-        error_code: last.error_code, fix_category: last.fix_category,
-        access_token: token,
-        user_id: $("f-user").value.trim() || null,
-        app_id: $("f-app").value.trim() || null,
-        redirect_uri: $("f-uri").value.trim() || null,
-        new_scope: $("f-scope").value.trim() || null,
-      }),
-    });
+    const res = await fetch(API + "/fix", { method:"POST",
+      headers:{ "Content-Type":"application/json", ...(cfg.demo_api_key_required ? {"X-API-Key": prompt("Demo API key:") || ""} : {}) },
+      body: JSON.stringify({ error_code: last.error_code, fix_category: last.fix_category, access_token: token,
+        user_id: $("f-user").value.trim() || null, app_id: $("f-app").value.trim() || null,
+        redirect_uri: $("f-uri").value.trim() || null, new_scope: $("f-scope").value.trim() || null }) });
     const body = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(body.detail || res.statusText);
     note("fixnote","n-ok", t("fix_ok","Fixed"), body.details || "Applied successfully.");
-  }catch(e){
-    note("fixnote","n-err", t("fix_failed","Fix failed"), String(e.message || e));
-  }finally{
-    btn.disabled = false; btn.textContent = t("fix_button","Fix it now");
-  }
+  }catch(e){ note("fixnote","n-err", t("fix_failed","Fix failed"), String(e.message || e)); }
+  finally{ btn.disabled = false; btn.innerHTML = label; }
 };
 
-/* ── escalate ─────────────────────────────────────────────── */
 $("doesc").onclick = async () => {
   try{
-    const res = await fetch(API + "/escalate", {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ error_input: $("input").value.trim(), lang: LANG }),
-    });
+    const res = await fetch(API + "/escalate", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ error_input: $("input").value.trim(), lang: LANG }) });
     const m = await res.json();
     $("escout").innerHTML =
-      `<div class="note n-ok" style="white-space:pre-wrap">
-         <b>${esc(t("subject","Subject"))}:</b> ${esc(m.subject)}\n\n${esc(m.body)}
-       </div>
-       <div class="row">
-         <button class="btn-ghost" id="copyesc">${esc(t("esc_copy","Copy email"))}</button>
-       </div>`;
-    $("copyesc").onclick = () => {
-      navigator.clipboard.writeText(m.subject + "\n\n" + m.body);
-      $("copyesc").textContent = t("esc_copied","Copied");
-    };
-  }catch(e){
-    note("escout","n-err", t("esc_failed","Couldn't draft the message"), String(e.message || e));
-  }
+      `<div class="note n-ok whitespace-pre-wrap text-sm bg-ok-container/40 border border-ok/30 rounded-xl p-3"><b>${esc(t("subject","Subject"))}:</b> ${esc(m.subject)}\n\n${esc(m.body)}</div>
+       <button id="copyesc" class="mt-3 text-sm font-semibold text-primary hover:underline">${esc(t("esc_copy","Copy email"))}</button>`;
+    $("copyesc").onclick = () => { navigator.clipboard.writeText(m.subject + "\n\n" + m.body); $("copyesc").textContent = t("esc_copied","Copied"); };
+  }catch(e){ note("escout","n-err", t("esc_failed","Couldn't draft the message"), String(e.message || e)); }
 };
 
-/* ── stats strip ──────────────────────────────────────────── */
 async function refreshStats(){
   try{
     const m = await (await fetch(API + "/metrics?last_n=500")).json();
     const src = m.classification_source || {};
     $("stats").innerHTML = [
-      [t("stat_p50","p50 latency"),      (m.latency_ms?.p50 ?? 0) + " ms"],
-      [t("stat_p95","p95 latency"),      (m.latency_ms?.p95 ?? 0) + " ms"],
-      [t("stat_requests","requests"),    m.request_count ?? 0],
-      [t("stat_exact","exact match"),    src.lookup ?? 0],
-      [t("stat_retrieved","retrieved"),  (src.retrieval ?? 0) + (src.model ?? 0)],
-    ].map(([k,v])=>`<div class="stat"><b>${esc(String(v))}</b>${esc(k)}</div>`).join("");
+      [t("stat_p50","p50 latency"),     (m.latency_ms?.p50 ?? 0) + " ms"],
+      [t("stat_p95","p95 latency"),     (m.latency_ms?.p95 ?? 0) + " ms"],
+      [t("stat_requests","requests"),   m.request_count ?? 0],
+      [t("stat_exact","exact match"),   src.lookup ?? 0],
+      [t("stat_retrieved","retrieved"), (src.retrieval ?? 0) + (src.model ?? 0)],
+    ].map(([k,v]) => `<div class="p-4 glass-card rounded-2xl text-center">
+        <b class="block text-lg font-bold font-mono text-on-surface">${esc(String(v))}</b>
+        <span class="text-xs text-on-surface-variant/80">${esc(k)}</span></div>`).join("");
   }catch{}
 }
 refreshStats();
 
-/* ── util ─────────────────────────────────────────────────── */
-function note(el, cls, title, body){
-  $(el).innerHTML = `<div class="note ${cls}"><b>${esc(title)}</b><br>${esc(body)}</div>`;
+function note(elId, kind, title, body){
+  const styles = { "n-ok":"bg-ok-container/50 text-ok border-ok/30",
+    "n-warn":"bg-secondary-fixed/40 text-on-secondary-container border-secondary/30",
+    "n-err":"bg-error-container/60 text-on-error-container border-error/30" }[kind]
+    || "bg-surface-container text-on-surface-variant border-outline-variant/30";
+  $(elId).innerHTML = `<div class="note ${kind} border rounded-xl p-3 text-sm ${styles}"><b>${esc(title)}</b><br>${esc(body)}</div>`;
 }
-function esc(s){
-  return String(s ?? "").replace(/[&<>"']/g, c =>
-    ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 </script>
 </body>
 </html>
