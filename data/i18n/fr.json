@@ -10,7 +10,7 @@
     "analyze": "Analyser",
     "analyzing": "Analyse en cours",
     "automatic_remediation": "Remédiation automatique",
-    "automatic_remediation_sub": "AzureAutoFix la résout via l'API Microsoft Graph — l'extension Chrome l'applique en un clic pour un administrateur authentifié.",
+    "automatic_remediation_sub": "Pour les administrateurs : avec un jeton d'accès Microsoft Graph et l'ID de l'objet concerné, le backend appelle l'API Graph pour appliquer cette correction — via le point de terminaison /fix ou l'extension Chrome.",
     "cat_admin_auto": "Correction automatique",
     "cat_admin_escalate": "Escalader à l'administrateur",
     "cat_retry": "Transitoire — réessayer",
