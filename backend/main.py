@@ -129,6 +129,9 @@ class AnalyzeResponse(BaseModel):
     # automated write against a live tenant.
     abstained: bool = False
     citations: list[Citation] = []
+    # Human portal steps for the auto-fix errors, so Path 2 is actionable
+    # without sign-in. Empty for errors that don't have them.
+    manual_steps: list[str] = []
     # Which language the authored text came back in.
     lang: str = "en"
     # False when `explanation` is untranslated source text quoted from

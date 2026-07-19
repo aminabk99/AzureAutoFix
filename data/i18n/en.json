@@ -6,6 +6,7 @@
     "dir": "ltr"
   },
   "ui": {
+    "admin_shortcut": "Admin shortcut: sign in and we call the Graph API to resolve it for the identity you specify.",
     "analyze": "Analyze",
     "analyzing": "Analyzing",
     "cat_admin_auto": "Auto-fixable",
@@ -13,6 +14,7 @@
     "cat_retry": "Transient — retry",
     "cat_user": "You can fix this",
     "confidence": "confidence",
+    "do_it_yourself": "Do it yourself in the portal",
     "esc_button": "Draft the message",
     "esc_copied": "Copied",
     "esc_copy": "Copy email",
@@ -126,5 +128,42 @@
     "explanation": "This error could not be matched to a known Azure AD error.",
     "action_detail": "Escalate to an administrator for manual review.",
     "user_message": "We couldn't identify this error automatically."
+  },
+  "manual_steps": {
+    "AADSTS50053": [
+      "In the Entra admin center, open the affected user's profile.",
+      "Under Authentication methods, select “Unlock account”.",
+      "Ask the user to wait ~60 seconds, then sign in again."
+    ],
+    "AADSTS50055": [
+      "Open the Microsoft Entra admin center and find the affected user.",
+      "Reset the user's password, or have them use “Forgot password”.",
+      "Ask the user to sign in with the new password."
+    ],
+    "AADSTS50057": [
+      "In the Entra admin center, open the affected user's profile.",
+      "Set “Block sign in” to No to re-enable the account.",
+      "Save, then ask the user to sign in again."
+    ],
+    "AADSTS700011": [
+      "Open the app registration and go to Certificates & secrets.",
+      "Create a new client secret and copy its value.",
+      "Update the application's configuration with the new secret."
+    ],
+    "AADSTS70011": [
+      "Open the app registration and go to API permissions.",
+      "Correct the requested scope or add the missing permission.",
+      "Grant admin consent if required, then retry."
+    ],
+    "AADSTS90094": [
+      "Open the app registration and go to API permissions.",
+      "Click “Grant admin consent” for your tenant.",
+      "Have the user sign in again to complete the flow."
+    ],
+    "AADSTS900971": [
+      "Open the affected app registration in the Azure portal.",
+      "Under Authentication, add the missing redirect URI on the correct platform.",
+      "Save, then have the user retry the sign-in."
+    ]
   }
 }

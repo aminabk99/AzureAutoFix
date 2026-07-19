@@ -6,6 +6,7 @@
     "dir": "ltr"
   },
   "ui": {
+    "admin_shortcut": "Atajo de administrador: inicia sesión y llamamos a la API de Graph para resolverlo con la identidad que indiques.",
     "analyze": "Analizar",
     "analyzing": "Analizando",
     "cat_admin_auto": "Corrección automática",
@@ -13,6 +14,7 @@
     "cat_retry": "Transitorio — reintentar",
     "cat_user": "Puedes corregirlo tú",
     "confidence": "de confianza",
+    "do_it_yourself": "Hazlo tú mismo en el portal",
     "esc_button": "Redactar el mensaje",
     "esc_copied": "Copiado",
     "esc_copy": "Copiar correo",
@@ -126,5 +128,42 @@
     "explanation": "No se pudo asociar este error con un error conocido de Azure AD.",
     "action_detail": "Deriva a un administrador para revisión manual.",
     "user_message": "No hemos podido identificar este error automáticamente."
+  },
+  "manual_steps": {
+    "AADSTS50053": [
+      "En el centro de administración de Entra, abre el perfil del usuario afectado.",
+      "En Métodos de autenticación, selecciona “Desbloquear cuenta”.",
+      "Pide al usuario que espere ~60 segundos y vuelva a iniciar sesión."
+    ],
+    "AADSTS50055": [
+      "Abre el centro de administración de Microsoft Entra y localiza al usuario afectado.",
+      "Restablece la contraseña del usuario, o que use “Olvidé mi contraseña”.",
+      "Pide al usuario que inicie sesión con la nueva contraseña."
+    ],
+    "AADSTS50057": [
+      "En el centro de administración de Entra, abre el perfil del usuario afectado.",
+      "Cambia “Bloquear inicio de sesión” a No para reactivar la cuenta.",
+      "Guarda y pide al usuario que inicie sesión de nuevo."
+    ],
+    "AADSTS700011": [
+      "Abre el registro de la aplicación y ve a Certificados y secretos.",
+      "Crea un nuevo secreto de cliente y copia su valor.",
+      "Actualiza la configuración de la aplicación con el nuevo secreto."
+    ],
+    "AADSTS70011": [
+      "Abre el registro de la aplicación y ve a Permisos de API.",
+      "Corrige el ámbito solicitado o añade el permiso que falta.",
+      "Concede el consentimiento de administrador si es necesario y reintenta."
+    ],
+    "AADSTS90094": [
+      "Abre el registro de la aplicación y ve a Permisos de API.",
+      "Haz clic en “Conceder consentimiento de administrador” para tu inquilino.",
+      "Pide al usuario que inicie sesión de nuevo para completar el proceso."
+    ],
+    "AADSTS900971": [
+      "Abre en el portal de Azure el registro de la aplicación afectada.",
+      "En Autenticación, añade el URI de redirección que falta en la plataforma correcta.",
+      "Guarda y pide al usuario que vuelva a iniciar sesión."
+    ]
   }
 }

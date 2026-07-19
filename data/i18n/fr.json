@@ -6,6 +6,7 @@
     "dir": "ltr"
   },
   "ui": {
+    "admin_shortcut": "Raccourci administrateur : connectez-vous et nous appelons l'API Graph pour le résoudre pour l'identité que vous indiquez.",
     "analyze": "Analyser",
     "analyzing": "Analyse en cours",
     "cat_admin_auto": "Correction automatique",
@@ -13,6 +14,7 @@
     "cat_retry": "Transitoire — réessayer",
     "cat_user": "Vous pouvez le corriger",
     "confidence": "de confiance",
+    "do_it_yourself": "Faites-le vous-même dans le portail",
     "esc_button": "Rédiger le message",
     "esc_copied": "Copié",
     "esc_copy": "Copier l'e-mail",
@@ -126,5 +128,42 @@
     "explanation": "Cette erreur n'a pas pu être associée à une erreur Azure AD connue.",
     "action_detail": "Escaladez à un administrateur pour examen manuel.",
     "user_message": "Nous n'avons pas pu identifier cette erreur automatiquement."
+  },
+  "manual_steps": {
+    "AADSTS50053": [
+      "Dans le centre d'administration Entra, ouvrez le profil de l'utilisateur concerné.",
+      "Sous Méthodes d'authentification, sélectionnez “Déverrouiller le compte”.",
+      "Demandez à l'utilisateur d'attendre ~60 secondes puis de se reconnecter."
+    ],
+    "AADSTS50055": [
+      "Ouvrez le centre d'administration Microsoft Entra et trouvez l'utilisateur concerné.",
+      "Réinitialisez le mot de passe de l'utilisateur, ou faites-lui utiliser “Mot de passe oublié”.",
+      "Demandez à l'utilisateur de se connecter avec le nouveau mot de passe."
+    ],
+    "AADSTS50057": [
+      "Dans le centre d'administration Entra, ouvrez le profil de l'utilisateur concerné.",
+      "Mettez “Bloquer la connexion” sur Non pour réactiver le compte.",
+      "Enregistrez, puis demandez à l'utilisateur de se reconnecter."
+    ],
+    "AADSTS700011": [
+      "Ouvrez l'inscription de l'application et allez dans Certificats et secrets.",
+      "Créez une nouvelle clé secrète client et copiez sa valeur.",
+      "Mettez à jour la configuration de l'application avec la nouvelle clé."
+    ],
+    "AADSTS70011": [
+      "Ouvrez l'inscription de l'application et allez dans Autorisations d'API.",
+      "Corrigez l'étendue demandée ou ajoutez l'autorisation manquante.",
+      "Accordez le consentement administrateur si nécessaire, puis réessayez."
+    ],
+    "AADSTS90094": [
+      "Ouvrez l'inscription de l'application et allez dans Autorisations d'API.",
+      "Cliquez sur “Accorder le consentement administrateur” pour votre locataire.",
+      "Demandez à l'utilisateur de se reconnecter pour terminer le processus."
+    ],
+    "AADSTS900971": [
+      "Ouvrez dans le portail Azure l'inscription de l'application concernée.",
+      "Sous Authentification, ajoutez l'URI de redirection manquant sur la bonne plateforme.",
+      "Enregistrez, puis demandez à l'utilisateur de réessayer la connexion."
+    ]
   }
 }

@@ -115,10 +115,14 @@ def localize(result: dict, lang: str) -> dict:
     degrades to mixed-language output, not to empty output.
     """
     locales = _load()
+    code_now = result.get("error_code", "")
+
     if lang == DEFAULT_LANG or lang not in locales:
         out = dict(result)
         out.setdefault("lang", DEFAULT_LANG)
         out.setdefault("explanation_translated", True)
+        en = locales.get(DEFAULT_LANG, {})
+        out["manual_steps"] = en.get("manual_steps", {}).get(code_now, [])
         return out
 
     loc = locales[lang]
@@ -164,6 +168,12 @@ def localize(result: dict, lang: str) -> dict:
         # user-facing slot when we have a translated action description.
         if not out.get("user_message") or out["user_message"] == result.get("explanation"):
             out["user_message"] = out.get("action_detail", out.get("user_message", ""))
+
+    # Manual portal steps, translated where available (English fallback).
+    steps = loc.get("manual_steps", {}).get(code)
+    if not steps:
+        steps = en.get("manual_steps", {}).get(code, [])
+    out["manual_steps"] = steps
 
     out["lang"] = lang
     out["explanation_translated"] = explanation_translated
